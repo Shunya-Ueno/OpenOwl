@@ -1,0 +1,28 @@
+# 環境変数(秘密情報)
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Expo / React Native (Phase 5 以降)
+.expo/
+dist/
+web-build/
+*.orig.*
+ios/
+android/
+
+# Supabase CLI のローカル状態
+backend/supabase/.branches
+backend/supabase/.temp
+
+# エディタ・OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# ログ
+*.log

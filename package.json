@@ -1,0 +1,16 @@
+{
+  "name": "openowl",
+  "private": true,
+  "description": "OpenOwl - 外国語学習モバイルアプリ (monorepo root)",
+  "scripts": {
+    "supabase:start": "cd backend && npm run supabase:start",
+    "supabase:stop": "cd backend && npm run supabase:stop",
+    "db:reset": "cd backend && npm run db:reset",
+    "db:diff": "cd backend && npm run db:diff --",
+    "db:types": "cd backend && npm run db:types",
+    "functions:serve": "cd backend && npm run functions:serve",
+    "functions:deploy": "cd backend && npm run functions:deploy",
+    "lint": "cd backend && npm run lint",
+    "typecheck": "cd backend && npm run typecheck"
+  }
+}
