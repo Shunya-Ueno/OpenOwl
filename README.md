@@ -2,10 +2,12 @@
 
 外国語学習モバイルアプリ。英単語を入力すると、LLM がニュアンス付きの類義語を提示します。
 
-> **現在のステータス: 設計フェーズ（Phase 2 完了 / 実装未着手）**
-> このリポジトリにはまだアプリケーションコードは含まれていません。
-> 現時点で確定しているのは、リポジトリ構成・技術選定・バックエンド設計（DBスキーマ / API仕様 / RLS）です。
-> 実装が進むたびに本 README を更新します。
+> **現在のステータス: Phase 3 実装完了（バックエンド） / ローカル実環境での検証は未実施**
+> `backend/` に Supabase マイグレーションと `generate-synonyms` Edge Function 一式を実装しました。
+> ただしこの環境には Supabase CLI / Deno がなく、`supabase db reset` や実際の Gemini API
+> への接続確認、RLS の実クエリ検証（[`docs/backend-design.md`](./docs/backend-design.md#実装フェーズphase-3の完了条件)）は
+> **まだ行っていません**。開発環境でこれらの完了条件を満たしてから Phase 3 を完了としてください。
+> フロントエンド（Phase 5）は未着手です。
 
 ## 概要
 
@@ -38,11 +40,17 @@ OpenOwl/
 │   ├── security.md
 │   ├── error-handling.md
 │   └── adr/               # 設計判断の記録
-├── backend/               # ⬜ Phase 3 で作成
+├── backend/               # ✅ Phase 3 で実装済み
+│   ├── package.json
+│   ├── .env.example
 │   └── supabase/
 │       ├── config.toml
-│       ├── migrations/    # SQL マイグレーション
-│       └── functions/     # Edge Functions（Deno / TypeScript）
+│       ├── seed.sql
+│       ├── migrations/    # SQL マイグレーション(DDL + RLS + RPC)
+│       └── functions/
+│           ├── deno.json
+│           ├── _shared/   # domain / application / infrastructure / http
+│           └── generate-synonyms/
 ├── frontend/              # ⬜ Phase 5 で作成
 │   └── ...                # React Native (Expo) アプリ本体
 └── .github/workflows/     # ⬜ Phase 6 で作成（CI）
@@ -89,18 +97,30 @@ cd OpenOwl
 
 詳細は [`docs/roadmap.md`](./docs/roadmap.md#人間の作業が必要なブロッカー) を参照。
 
-### 4. ローカル環境の起動（⬜ Phase 3 以降で有効になります）
+### 4. ローカル環境の起動
+
+Supabase CLI と Docker Desktop が必要です（[前提ツール](#前提ツール)）。
 
 ```bash
 # Supabase ローカルスタックの起動（Postgres / Auth / Edge Runtime）
 npm run supabase:start
 
-# マイグレーションの適用
+# マイグレーションの適用（backend/supabase/migrations/ の DDL + RLS + RPC を反映）
 npm run db:reset
 
-# Edge Functions のローカル実行
+# backend/.env.example を backend/.env にコピーし、GEMINI_API_KEY 等を設定してから:
 npm run functions:serve
 ```
+
+起動後、`supabase start` の出力に表示されるユーザーでサインアップし、
+`curl` や Postman から `Authorization: Bearer <access_token>` を付けて
+`POST http://127.0.0.1:54321/functions/v1/generate-synonyms` を呼び出せます
+（詳細は [`docs/api-spec.md`](./docs/api-spec.md)）。
+
+> **未検証の注意**: `backend/` のコードは [`docs/backend-design.md`](./docs/backend-design.md) に基づいて
+> 実装されていますが、Supabase CLI / Deno が使える環境でまだ実行検証していません。
+> 上記コマンドを実行し、[RLS の検証6項目](./docs/security.md#rls-の検証phase-3-の完了条件)と
+> [Phase 3 の完了条件](./docs/backend-design.md#実装フェーズphase-3の完了条件)を満たすことを確認してください。
 
 ## 環境変数
 
@@ -139,19 +159,21 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 
 ## 開発コマンド
 
-`⬜` は該当フェーズで実装され次第、有効になります。
+`⬜` は該当フェーズで実装され次第、有効になります。✅ のコマンドは実装済みですが、
+この開発環境では実行検証していません（上記の「未検証の注意」を参照）。
 
 | コマンド | 内容 | 状態 |
 | --- | --- | --- |
-| `npm run supabase:start` / `supabase:stop` | ローカル Supabase スタックの起動・停止 | ⬜ Phase 3 |
-| `npm run db:reset` | ローカル DB を再作成しマイグレーションを適用 | ⬜ Phase 3 |
-| `npm run db:diff -- <name>` | スキーマ差分から新規マイグレーションを生成 | ⬜ Phase 3 |
-| `npm run db:types` | DB から TypeScript 型を生成 | ⬜ Phase 3 |
-| `npm run functions:serve` | Edge Functions をローカル起動 | ⬜ Phase 3 |
-| `npm run functions:deploy` | Edge Functions をデプロイ | ⬜ Phase 3 |
+| `npm run supabase:start` / `supabase:stop` | ローカル Supabase スタックの起動・停止 | ✅ 実装済み |
+| `npm run db:reset` | ローカル DB を再作成しマイグレーションを適用 | ✅ 実装済み |
+| `npm run db:diff -- <name>` | スキーマ差分から新規マイグレーションを生成 | ✅ 実装済み |
+| `npm run db:types` | DB から TypeScript 型を生成（`backend/.../database.types.ts` を上書き） | ✅ 実装済み |
+| `npm run functions:serve` | Edge Functions をローカル起動（`backend/.env` を読み込む） | ✅ 実装済み |
+| `npm run functions:deploy` | `generate-synonyms` をデプロイ | ✅ 実装済み |
+| `npm run lint` | `deno lint` | ✅ 実装済み |
+| `npm run typecheck` | `deno check`（エントリーポイントから import グラフ全体を検査） | ✅ 実装済み |
 | `npm run start` | Expo 開発サーバの起動 | ⬜ Phase 5 |
 | `npm run ios` / `npm run android` | 各プラットフォームでの起動 | ⬜ Phase 5 |
-| `npm run lint` / `npm run typecheck` | ESLint / TypeScript 型チェック | ⬜ Phase 3 |
 | `npm run test:e2e` | E2E テスト（実 Supabase / 実 Gemini に接続） | ⬜ Phase 6 |
 
 ## 開発方針（要点）

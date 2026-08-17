@@ -33,12 +33,18 @@ App Store 掲載を目標とした外国語学習アプリ。
 | 0 | `docs/` 構成設計、`README.md`、`CLAUDE.md` の作成 | Opus / Fable（設計） | ✅ 完了 |
 | 1 | リポジトリ構成・技術選定の確認 | Opus / Fable（設計） | ✅ 完了 |
 | 2 | バックエンド設計（DBスキーマ、Edge Functions、API仕様、RLS） | Opus / Fable（設計） | ✅ 完了 |
-| 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | ⬜ 未着手 |
+| 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | 🟡 コード実装済み / 実環境検証は未実施(注1) |
 | 4 | フロントエンド設計（画面構成、状態管理、ディレクトリ構造） | Opus / Fable（設計） | ⬜ 未着手 |
 | 5 | フロントエンド実装 | Sonnet（実装） | ⬜ 未着手 |
 | 6 | E2Eテスト・CI 設定 | Sonnet（実装） | ⬜ 未着手 |
 
 **Phase 2 完了時点でいったん停止し、人間のレビューを受ける。**
+
+> **注1（Phase 3 の状態について）**: `backend/` 一式（マイグレーション・RLS・Edge Function）は
+> [`docs/backend-design.md`](./backend-design.md) に基づいて実装済みです。ただし実装を行った環境に
+> Supabase CLI / Deno がなく、`supabase db reset`・RLS の実クエリ検証・実際の Gemini API 呼び出しの
+> いずれも実行できていません。[Phase 3 の完了条件](./backend-design.md#実装フェーズphase-3の完了条件)を
+> ローカル環境で満たしてから、このステータスを ✅ 完了に更新してください。
 
 ### モデル使い分けの原則
 

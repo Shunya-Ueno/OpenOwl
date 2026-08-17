@@ -1,0 +1,61 @@
+# Supabase CLI 設定。ローカルスタック(`supabase start`)とデプロイ時の Function 設定を管理する。
+# 詳細: https://supabase.com/docs/guides/local-development/cli/config
+
+project_id = "openowl"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = ["openowl://auth-callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+# パスワード最小長は security.md の方針に合わせる。
+minimum_password_length = 8
+
+# Google / Apple は Phase 5 でオーナーがクライアントID/シークレットを発行してから有効化する。
+# 値は環境変数経由で注入し、リポジトリには書かない。
+[auth.external.google]
+enabled = false
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
+
+[auth.external.apple]
+enabled = false
+client_id = "env(APPLE_CLIENT_ID)"
+secret = "env(APPLE_CLIENT_SECRET)"
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+
+# generate-synonyms: 認証必須。JWT検証をランタイム層でも行う(多層防御)。
+[functions.generate-synonyms]
+enabled = true
+verify_jwt = true
+import_map = "./functions/deno.json"

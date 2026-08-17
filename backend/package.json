@@ -1,0 +1,16 @@
+{
+  "name": "openowl-backend",
+  "private": true,
+  "description": "Supabase (Postgres migrations + Edge Functions). npm 依存は持たない (Deno ランタイム)。",
+  "scripts": {
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:diff": "supabase db diff -f",
+    "db:types": "supabase gen types typescript --local > supabase/functions/_shared/infrastructure/supabase/database.types.ts",
+    "functions:serve": "supabase functions serve --env-file .env",
+    "functions:deploy": "supabase functions deploy generate-synonyms",
+    "lint": "deno lint supabase/functions",
+    "typecheck": "deno check supabase/functions/generate-synonyms/index.ts"
+  }
+}
