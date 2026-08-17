@@ -10,7 +10,7 @@
     "db:types": "supabase gen types typescript --local > supabase/functions/_shared/infrastructure/supabase/database.types.ts",
     "functions:serve": "supabase functions serve --env-file .env",
     "functions:deploy": "supabase functions deploy generate-synonyms",
-    "lint": "deno lint supabase/functions",
-    "typecheck": "deno check supabase/functions/generate-synonyms/index.ts"
+    "lint": "deno lint --config supabase/functions/deno.json supabase/functions",
+    "typecheck": "deno check --config supabase/functions/deno.json supabase/functions/generate-synonyms/index.ts"
   }
 }

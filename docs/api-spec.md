@@ -127,11 +127,15 @@ Content-Type: application/json
 | 405 | `method_not_allowed` | ❌ | `POST` / `OPTIONS` 以外 |
 | 422 | `not_a_known_word` | ❌ | LLM が「英単語として認識できない」と判断した |
 | 429 | `rate_limited` | ✅ | 1日 or 毎分の上限超過。`retryAfterSeconds` を必ず含む |
+| 502 | `llm_output_truncated` | ❌ | LLM の出力がトークン上限に達して途中で切れた。同じ入力では決定的に再発するためリトライしない |
 | 502 | `llm_invalid_response` | ✅ | LLM の応答がスキーマに適合しない |
 | 503 | `llm_unavailable` | ✅ | LLM 側の 5xx / 429、ネットワーク到達不可 |
 | 504 | `llm_timeout` | ✅ | LLM 呼び出しがタイムアウト（既定 10 秒） |
 | 500 | `internal_error` | ✅ | 上記以外（DB エラー等） |
 
+- `rate_limited` は「1日の上限」と「毎分のバースト」の両方で返りますが、`message` は
+  どちらの上限に当たったかで文言が変わります（`retryAfterSeconds` も 60 秒程度 / 数時間と大きく異なる）。
+  クライアントは `message` をそのまま表示し、`retryAfterSeconds` で待機時間を出してください。
 - `message` は**そのままユーザーに表示できる日本語**にします。
   ただし内部の詳細（スタックトレース、外部 API の生エラー）は含めません。
 - `retryable: false` のエラーをクライアントが自動リトライすることは禁止です

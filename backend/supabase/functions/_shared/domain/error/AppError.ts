@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'method_not_allowed'
   | 'not_a_known_word'
   | 'rate_limited'
+  | 'llm_output_truncated'
   | 'llm_invalid_response'
   | 'llm_unavailable'
   | 'llm_timeout'
@@ -77,15 +78,46 @@ export class NotAKnownWordError extends AppError {
   }
 }
 
-export class RateLimitError extends AppError {
+/**
+ * レート制限の基底クラス。上限の種類によってユーザーへの説明が変わるため、
+ * userMessage はサブクラスで定義する(「毎分バースト」と「1日の上限」を混同させない)。
+ */
+export abstract class RateLimitError extends AppError {
   readonly code = 'rate_limited' as const;
   readonly httpStatus = 429;
   readonly retryable = true;
-  readonly userMessage =
-    '本日の生成回数の上限に達しました。保存済みの履歴はいつでも見返せます。';
 
   constructor(message: string, readonly retryAfterSeconds: number) {
     super(message);
+  }
+}
+
+/** 1日あたりの生成上限の超過。LLM のコスト上限。 */
+export class DailyRateLimitError extends RateLimitError {
+  readonly userMessage =
+    '本日の生成回数の上限に達しました。保存済みの履歴はいつでも見返せます。';
+}
+
+/** 毎分あたりのリクエスト上限の超過。短時間の集中を抑えるためのもの。 */
+export class BurstRateLimitError extends RateLimitError {
+  readonly userMessage =
+    'リクエストが短時間に集中しています。少し待ってからお試しください。';
+}
+
+/**
+ * LLM の出力が maxOutputTokens に達して途中で切れた場合。
+ *
+ * 同じ入力なら決定的に再発するため retryable = false とする
+ * (retryable にすると、必ず失敗する生成にフル課金でもう1回払うことになる)。
+ */
+export class LlmOutputTruncatedError extends AppError {
+  readonly code = 'llm_output_truncated' as const;
+  readonly httpStatus = 502;
+  readonly retryable = false;
+  readonly userMessage = 'この単語の結果を取得できませんでした。別の単語でお試しください。';
+
+  constructor(message: string, readonly telemetry: GenerationTelemetry, cause?: unknown) {
+    super(message, cause);
   }
 }
 

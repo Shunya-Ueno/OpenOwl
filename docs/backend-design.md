@@ -375,7 +375,7 @@ If the input is not an English word, set isKnownWord to false and return an empt
 | --- | --- |
 | `thinkingConfig.thinkingBudget = 0` | Flash-Lite の推論トークンを消費させない。類義語列挙に段階的推論は不要 |
 | `responseSchema` による構造化出力 | 出力形式の説明をプロンプト本文から追い出せる（毎回の入力トークンが減る） |
-| `maxOutputTokens: 800` | 5件×（語 + 品詞 + 日本語40字×2）に対する上限。暴走出力を止める |
+| `maxOutputTokens: 1200` | 5件×（語 + 品詞 + 日本語40字×2）の最悪ケース（〜900トークン）に余裕を持たせた上限。暴走出力は止めつつ、切り詰めによる決定的な失敗を避ける |
 | `temperature: 0.3` | 出力を安定させ、再生成の必要を減らす |
 | 出力を日本語40字以内に制限 | 出力トークン数の抑制。UI 上も長文は読まれない |
 | ユーザー横断キャッシュ | 同じ単語は全ユーザーで1回しか生成しない（[ADR-0007](./adr/0007-shared-synonym-cache.md)） |
@@ -395,6 +395,8 @@ If the input is not an English word, set isKnownWord to false and return an empt
 | タイムアウト | ❌ しない | 既に10秒待っている。再試行すると体感20秒になり UX が壊れる |
 | 400 系（不正リクエスト） | ❌ しない | 再送しても必ず同じ結果。設定・実装の問題 |
 | スキーマ不適合の応答 | ❌ しない | 再生成に**フル課金が発生する**。502 で返し、ログから原因を追う |
+| 2xx の本文が壊れた JSON | ❌ しない | 生成は既に課金済み。再送は二重課金にしかならない（`llm_invalid_response`） |
+| `finishReason = MAX_TOKENS` | ❌ しない | 切り詰めは同じ入力で決定的に再発する（`llm_output_truncated`、`retryable: false`） |
 
 ## 認証と HTTP 境界
 
@@ -407,7 +409,10 @@ export class JwtAuthenticator {
 ```
 
 - `Authorization` ヘッダの JWT を `auth.getUser(jwt)` で検証し、**ユーザー ID をサーバ側で確定**します。
-- `config.toml` の `verify_jwt = true` と合わせた二重チェックです。
+- **`config.toml` では `verify_jwt = false` にしています。** ランタイム層の JWT 検証は
+  CORS プリフライト（`OPTIONS`）も 401 で弾いてしまい、`OPTIONS` には Authorization ヘッダが
+  付かないためブラウザ経由の呼び出しが成立しません。認証は**この `JwtAuthenticator` が必ず実施**します
+  （多層防御を1層に減らす代わりに、関数内での検証を必須の完了条件としています）。
 - **リクエストボディのユーザー識別子は受け付けません**（[`api-spec.md`](./api-spec.md)）。
 
 ## 合成ルート（`generate-synonyms/index.ts`）

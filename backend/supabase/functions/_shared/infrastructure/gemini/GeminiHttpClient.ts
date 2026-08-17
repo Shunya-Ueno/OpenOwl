@@ -1,4 +1,9 @@
-import { InternalError, LlmTimeoutError, LlmUnavailableError } from '../../domain/error/AppError.ts';
+import {
+  InternalError,
+  LlmInvalidResponseError,
+  LlmTimeoutError,
+  LlmUnavailableError,
+} from '../../domain/error/AppError.ts';
 
 const MAX_ATTEMPTS = 2; // 初回 + リトライ1回まで(429/5xx/ネットワークエラーのみ)
 const RETRY_BASE_DELAY_MS = 500;
@@ -12,6 +17,16 @@ export interface GeminiRawResponse {
 class GeminiHttpError extends Error {
   constructor(readonly status: number, readonly retryable: boolean) {
     super(`gemini http error: ${status}`);
+  }
+}
+
+/**
+ * 2xx で返ってきた本文が JSON として壊れていた場合の内部エラー。
+ * この時点で生成は課金済みなので、再送しては絶対にいけない。
+ */
+class GeminiBodyParseError extends Error {
+  constructor(readonly parseCause: unknown) {
+    super('gemini response body was not valid JSON');
   }
 }
 
@@ -69,7 +84,11 @@ export class GeminiHttpClient {
         throw new GeminiHttpError(response.status, retryable);
       }
 
-      return await response.json();
+      try {
+        return await response.json();
+      } catch (error) {
+        throw new GeminiBodyParseError(error);
+      }
     } finally {
       clearTimeout(timeout);
     }
@@ -77,8 +96,11 @@ export class GeminiHttpClient {
 
   private isRetryable(error: unknown): boolean {
     if (error instanceof GeminiHttpError) return error.retryable;
+    // 課金済みの応答が壊れていただけなので、再送は純粋な二重課金になる。
+    if (error instanceof GeminiBodyParseError) return false;
     if (this.isAbortError(error)) return false;
-    return true; // ネットワークエラー等
+    // fetch 自体が失敗した場合(DNS・接続断など)。トークンは消費していない。
+    return error instanceof TypeError;
   }
 
   private toAppError(error: unknown, latencyMs: number): Error {
@@ -87,11 +109,17 @@ export class GeminiHttpClient {
     if (this.isAbortError(error)) {
       return new LlmTimeoutError('gemini request timed out', telemetry, error);
     }
+    if (error instanceof GeminiBodyParseError) {
+      return new LlmInvalidResponseError(error.message, telemetry, error.parseCause);
+    }
     if (error instanceof GeminiHttpError && !error.retryable) {
       // 429/5xx 以外の4xx。送り直しても解決しない実装上の問題として扱う。
       return new InternalError(`gemini request rejected: ${error.message}`, error);
     }
-    return new LlmUnavailableError('gemini request failed', telemetry, error);
+    if (error instanceof GeminiHttpError || error instanceof TypeError) {
+      return new LlmUnavailableError('gemini request failed', telemetry, error);
+    }
+    return new InternalError('unexpected error while calling gemini', error);
   }
 
   private isAbortError(error: unknown): boolean {

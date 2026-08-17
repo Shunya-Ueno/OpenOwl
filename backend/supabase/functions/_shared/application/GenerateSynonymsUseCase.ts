@@ -122,17 +122,33 @@ export class GenerateSynonymsUseCase {
       const appError = this.toAppError(error);
       const telemetry = this.extractTelemetry(appError);
 
-      await this.repository.recordFailure({
-        userId: command.userId,
-        word,
-        rawInput: wordText.raw,
-        model: this.generator.model,
-        promptVersion: this.generator.promptVersion,
-        errorCode: appError.code,
-        promptTokens: telemetry?.promptTokens ?? null,
-        completionTokens: telemetry?.completionTokens ?? null,
-        latencyMs: telemetry?.latencyMs ?? null,
-      });
+      // 失敗の記録に失敗しても、元のエラーを取り違えてはならない。
+      // ここを素で await すると DB 側の一過性エラーが元の AppError を置き換え、
+      // 504 llm_timeout や 422 not_a_known_word が 500 internal_error に化けて
+      // ログからも元のコードが消える。
+      try {
+        await this.repository.recordFailure({
+          userId: command.userId,
+          word,
+          rawInput: wordText.raw,
+          model: this.generator.model,
+          promptVersion: this.generator.promptVersion,
+          errorCode: appError.code,
+          promptTokens: telemetry?.promptTokens ?? null,
+          completionTokens: telemetry?.completionTokens ?? null,
+          latencyMs: telemetry?.latencyMs ?? null,
+        });
+      } catch (recordError) {
+        // 記録の失敗自体は別イベントとして残す(レート制限のカウント漏れになるため無視しない)。
+        this.logger.error({
+          requestId: command.requestId,
+          userId: command.userId,
+          word: word.text,
+          outcome: 'record_failure_failed',
+          errorCode: appError.code,
+          message: recordError instanceof Error ? recordError.message : 'unknown error',
+        });
+      }
 
       this.logger.error({
         requestId: command.requestId,

@@ -77,30 +77,7 @@ export class SupabaseSynonymRepository implements SynonymRepository {
     }
     if (!generation.data) return null;
 
-    const synonymRows = await this.client
-      .from('synonyms')
-      .select('id, term, part_of_speech, definition, nuance, sort_order')
-      .eq('generation_id', generation.data.id)
-      .order('sort_order', { ascending: true });
-
-    if (synonymRows.error) {
-      throw new InternalError(
-        `failed to load cached synonyms: ${synonymRows.error.message}`,
-        synonymRows.error,
-      );
-    }
-
-    const synonyms = synonymRows.data.map(
-      (row) =>
-        new Synonym(
-          row.term,
-          row.part_of_speech as PartOfSpeech | null,
-          row.definition ?? '',
-          row.nuance ?? '',
-          row.sort_order,
-          row.id,
-        ),
-    );
+    const synonyms = await this.loadSynonyms(generation.data.id);
 
     return new SynonymGeneration(
       generation.data.id,
@@ -137,13 +114,43 @@ export class SupabaseSynonymRepository implements SynonymRepository {
       );
     }
 
+    // 保存済みの行を読み戻す。LLM が返した Synonym は id を持たないため、
+    // そのまま返すと source:"generated" の応答から synonyms[].id が欠落し、
+    // キャッシュ応答との形が食い違う(api-spec.md では必須の uuid)。
+    const synonyms = await this.loadSynonyms(data);
+
     return new SynonymGeneration(
       data,
       input.word,
-      input.synonyms,
+      synonyms,
       input.model,
       input.promptVersion,
       new Date(),
+    );
+  }
+
+  /** 指定した生成の類義語を sort_order 昇順で読み出す。 */
+  private async loadSynonyms(generationId: string): Promise<Synonym[]> {
+    const { data, error } = await this.client
+      .from('synonyms')
+      .select('id, term, part_of_speech, definition, nuance, sort_order')
+      .eq('generation_id', generationId)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      throw new InternalError(`failed to load synonyms: ${error.message}`, error);
+    }
+
+    return data.map(
+      (row) =>
+        new Synonym(
+          row.term,
+          row.part_of_speech as PartOfSpeech | null,
+          row.definition ?? '',
+          row.nuance ?? '',
+          row.sort_order,
+          row.id,
+        ),
     );
   }
 

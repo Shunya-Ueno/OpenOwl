@@ -165,8 +165,12 @@ create policy "search_history_select_own" on public.search_history
 
 ## Edge Functions のセキュリティ
 
-- `config.toml` で `verify_jwt = true` を設定し、無効な JWT をランタイム層で弾く。
-  さらに関数内でも `auth.getUser(jwt)` により**ユーザーを再確認**する（多層防御）。
+- **認証は関数内の `JwtAuthenticator` が必ず実施する**（`auth.getUser(jwt)` で検証し、
+  ユーザー ID をサーバ側で確定する）。`config.toml` は `verify_jwt = false` とする。
+  ランタイム層の JWT 検証は CORS プリフライト（`OPTIONS`）まで 401 で弾いてしまい、
+  `OPTIONS` に Authorization ヘッダが付かないためブラウザからの呼び出しが成立しないため。
+  **この結果、認証の防衛線は関数内の1層になる。** 認証必須のエンドポイントを追加する際は、
+  ハンドラの先頭で `JwtAuthenticator` を通すことを必ず確認する（レビュー時の必須確認項目）。
 - **クライアントが送る `user_id` は受け付けない。** リクエストボディにユーザー識別子を含めない設計とする
   （[`api-spec.md`](./api-spec.md)）。
 - CORS は許可オリジンを絞る。モバイルアプリからの呼び出しが主のため、

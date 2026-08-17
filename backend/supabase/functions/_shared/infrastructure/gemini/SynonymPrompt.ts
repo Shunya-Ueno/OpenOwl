@@ -1,7 +1,11 @@
 import { z } from 'zod';
 import type { WordText } from '../../domain/model/WordText.ts';
 import { Synonym, type PartOfSpeech } from '../../domain/model/Synonym.ts';
-import { LlmInvalidResponseError, NotAKnownWordError } from '../../domain/error/AppError.ts';
+import {
+  LlmInvalidResponseError,
+  LlmOutputTruncatedError,
+  NotAKnownWordError,
+} from '../../domain/error/AppError.ts';
 import type { GeminiRawResponse } from './GeminiHttpClient.ts';
 
 const SYSTEM_INSTRUCTION = [
@@ -32,9 +36,15 @@ const geminiEnvelopeSchema = z.object({
   candidates: z
     .array(
       z.object({
-        content: z.object({
-          parts: z.array(z.object({ text: z.string() })).min(1),
-        }),
+        finishReason: z.string().optional(),
+        // MAX_TOKENS で打ち切られた場合、content ごと欠落することがある。
+        // ここを必須にすると finishReason を見る前にスキーマ検証で落ち、
+        // 切り詰めを切り詰めとして検知できなくなるため optional にする。
+        content: z
+          .object({
+            parts: z.array(z.object({ text: z.string() })).min(1),
+          })
+          .optional(),
       }),
     )
     .min(1),
@@ -65,7 +75,10 @@ export class SynonymPrompt {
       contents: [{ role: 'user', parts: [{ text: word.value }] }],
       generationConfig: {
         temperature: 0.3,
-        maxOutputTokens: 800,
+        // 5件 ×(term + 品詞 + 日本語40字×2)。日本語は1文字あたり1〜2トークンかかるため
+        // 1件あたり最大 ~150 トークン、JSON の構造分を加えて ~900 が最悪ケース。
+        // 800 では切り詰めが起きうるため余裕を持たせる(暴走出力の上限としては機能する)。
+        maxOutputTokens: 1200,
         responseMimeType: 'application/json',
         responseSchema: {
           type: 'object',
@@ -107,7 +120,27 @@ export class SynonymPrompt {
     const completionTokens = envelope.data.usageMetadata?.candidatesTokenCount ?? null;
     const telemetry = { promptTokens, completionTokens, latencyMs: raw.latencyMs };
 
-    const text = envelope.data.candidates[0].content.parts[0].text;
+    const candidate = envelope.data.candidates[0];
+
+    // finishReason を検査する。MAX_TOKENS で切れた JSON は「スキーマ不適合」として
+    // 扱うと原因が分からず、しかも retryable 扱いで無駄な再課金を招く。
+    // 切り詰めは同じ入力なら決定的に再発するため、専用の非リトライエラーにする。
+    if (candidate.finishReason && candidate.finishReason !== 'STOP') {
+      const message = `gemini stopped early: finishReason=${candidate.finishReason}`;
+      if (candidate.finishReason === 'MAX_TOKENS') {
+        throw new LlmOutputTruncatedError(message, telemetry);
+      }
+      throw new LlmInvalidResponseError(message, telemetry);
+    }
+
+    if (!candidate.content) {
+      throw new LlmInvalidResponseError(
+        'gemini response candidate contained no content',
+        telemetry,
+      );
+    }
+
+    const text = candidate.content.parts[0].text;
 
     let json: unknown;
     try {
