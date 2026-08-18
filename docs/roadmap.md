@@ -33,7 +33,7 @@ App Store 掲載を目標とした外国語学習アプリ。
 | 0 | `docs/` 構成設計、`README.md`、`CLAUDE.md` の作成 | Opus / Fable（設計） | ✅ 完了 |
 | 1 | リポジトリ構成・技術選定の確認 | Opus / Fable（設計） | ✅ 完了 |
 | 2 | バックエンド設計（DBスキーマ、Edge Functions、API仕様、RLS） | Opus / Fable（設計） | ✅ 完了 |
-| 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | 🟡 コード実装済み / 実環境検証は未実施(注1) |
+| 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | 🟡 Supabase プロジェクトへ適用・デプロイ済み / Gemini API 未接続(注1) |
 | 4 | フロントエンド設計（画面構成、状態管理、ディレクトリ構造） | Opus / Fable（設計） | ⬜ 未着手 |
 | 5 | フロントエンド実装 | Sonnet（実装） | ⬜ 未着手 |
 | 6 | E2Eテスト・CI 設定 | Sonnet（実装） | ⬜ 未着手 |
@@ -41,10 +41,25 @@ App Store 掲載を目標とした外国語学習アプリ。
 **Phase 2 完了時点でいったん停止し、人間のレビューを受ける。**
 
 > **注1（Phase 3 の状態について）**: `backend/` 一式（マイグレーション・RLS・Edge Function）は
-> [`docs/backend-design.md`](./backend-design.md) に基づいて実装済みです。ただし実装を行った環境に
-> Supabase CLI / Deno がなく、`supabase db reset`・RLS の実クエリ検証・実際の Gemini API 呼び出しの
-> いずれも実行できていません。[Phase 3 の完了条件](./backend-design.md#実装フェーズphase-3の完了条件)を
-> ローカル環境で満たしてから、このステータスを ✅ 完了に更新してください。
+> [`docs/backend-design.md`](./backend-design.md) に基づいて実装し、Supabase MCP 経由で
+> テスト用プロジェクト `OpenOwl-feature`（`vaaaiatfouoaljsitstv` / ap-south-1）に反映済みです。
+>
+> **実施済み**:
+> - マイグレーション3本を適用（`init_schema` / `restrict_handle_new_user_execute` /
+>   `index_search_history_fk_columns`。後者2つはコードレビューと Supabase Advisor の指摘を受けた追加修正）
+> - `generate-synonyms` Edge Function をデプロイ（`ACTIVE`、`verify_jwt=false`。
+>   理由は [`security.md`](./security.md#edge-functions-のセキュリティ) 参照）
+> - Supabase Advisor（security / performance）を確認し、指摘はすべて解消済み（0件）
+> - 実 DB から型を生成し、`database.types.ts` を検証・反映（RPC引数の nullability のみ手動補正）
+>
+> **未実施**（[Phase 3 の完了条件](./backend-design.md#実装フェーズphase-3の完了条件)の残り）:
+> - `GEMINI_API_KEY` の登録（API キー入力は AI が代行しない方針のため、オーナー作業待ち）
+> - 実際の Gemini API を使った成功パス・異常系（レート制限・タイムアウト等）の動作確認
+> - RLS の実クエリ検証6項目（[`security.md`](./security.md#rls-の検証phase-3-の完了条件)）—
+>   テストユーザーの作成を伴うため、キー登録後にあわせて実施する
+> - `deno lint` / `deno check` によるコンパイル確認（この作業環境に Deno がないため未実行）
+>
+> オーナーが `GEMINI_API_KEY` を登録し次第、上記の残項目を実施して Phase 3 を ✅ 完了にしてください。
 
 ### モデル使い分けの原則
 
@@ -62,8 +77,8 @@ Phase 3 に入る前に完了している必要がある。
 
 | # | 作業 | 必要になるフェーズ | 備考 |
 | --- | --- | --- | --- |
-| 1 | Supabase プロジェクト作成（本番用・テスト用の2つ） | Phase 3 | 無料枠で開始可能。テスト用を分ける理由は [`security.md`](./security.md) 参照 |
-| 2 | Google AI Studio で Gemini API キー発行 | Phase 3 | 無料枠あり。従量課金へ移行する場合は要判断 |
+| 1 | ~~Supabase プロジェクト作成（本番用・テスト用の2つ）~~ | Phase 3 | ✅ 完了。本番用 `OpenOwl`（ap-northeast-1 / `pbhxklsjsvnaovwdvkbx`）、テスト用 `OpenOwl-feature`（ap-south-1 / `vaaaiatfouoaljsitstv`）。マイグレーション・Function は現在テスト用にのみ反映済み |
+| 2 | Google AI Studio で Gemini API キー発行、`supabase secrets set GEMINI_API_KEY=...` で登録 | Phase 3 | **未完了・次のブロッカー**。無料枠あり。キーは AI に渡さずオーナーが直接登録する |
 | 3 | Google Cloud Console で OAuth クライアント ID 発行（iOS / Android / Web） | Phase 5 | Google ログイン用 |
 | 4 | Apple Developer Program 加入（年額 $99）と Sign in with Apple の設定 | Phase 5 | App Store 掲載と Apple ログインに必須 |
 | 5 | Supabase ダッシュボードでの各 Provider 有効化とシークレット登録 | Phase 3 / 5 | キーは AI に渡さず、オーナーが直接登録する |

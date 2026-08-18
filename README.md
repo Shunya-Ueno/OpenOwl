@@ -2,11 +2,11 @@
 
 外国語学習モバイルアプリ。英単語を入力すると、LLM がニュアンス付きの類義語を提示します。
 
-> **現在のステータス: Phase 3 実装完了（バックエンド） / ローカル実環境での検証は未実施**
-> `backend/` に Supabase マイグレーションと `generate-synonyms` Edge Function 一式を実装しました。
-> ただしこの環境には Supabase CLI / Deno がなく、`supabase db reset` や実際の Gemini API
-> への接続確認、RLS の実クエリ検証（[`docs/backend-design.md`](./docs/backend-design.md#実装フェーズphase-3の完了条件)）は
-> **まだ行っていません**。開発環境でこれらの完了条件を満たしてから Phase 3 を完了としてください。
+> **現在のステータス: Phase 3 — Supabase テストプロジェクトへ反映済み / Gemini API 未接続**
+> `backend/` のマイグレーションと `generate-synonyms` Edge Function を、テスト用 Supabase
+> プロジェクト `OpenOwl-feature` に実際に適用・デプロイしました（Advisor 指摘は解消済み）。
+> 残るのは `GEMINI_API_KEY` の登録（オーナー作業）と、それを使った動作確認・RLS 実クエリ検証です。
+> 詳細は [`docs/roadmap.md`](./docs/roadmap.md#人間の作業が必要なブロッカー) を参照してください。
 > フロントエンド（Phase 5）は未着手です。
 
 ## 概要
