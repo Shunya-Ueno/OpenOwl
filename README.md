@@ -2,13 +2,15 @@
 
 外国語学習モバイルアプリ。英単語を入力すると、LLM がニュアンス付きの類義語を提示します。
 
-> **現在のステータス: Phase 3 — Supabase テストプロジェクトへ反映済み / Gemini API 未接続、Phase 4 — フロントエンド設計完了**
+> **現在のステータス: バックエンド反映済み（Phase 3、Gemini API 未接続） / フロントエンド実装済み（Phase 5、実機・シミュレータ未検証）**
 > `backend/` のマイグレーションと `generate-synonyms` Edge Function を、テスト用 Supabase
 > プロジェクト `OpenOwl-feature` に実際に適用・デプロイしました（Advisor 指摘は解消済み）。
 > 残るのは `GEMINI_API_KEY` の登録（オーナー作業）と、それを使った動作確認・RLS 実クエリ検証です。
+> `frontend/` は [`docs/frontend/`](./docs/frontend/) の設計に基づき実装済みで、
+> `npm run typecheck` / `npm run lint` は通っています。ただしこの開発環境には
+> シミュレータ・実機がなく、**実際に起動しての動作確認は未実施**です。
+> Google/Apple ログインは OAuth クライアント発行（オーナー作業）が済むまで動作しません。
 > 詳細は [`docs/roadmap.md`](./docs/roadmap.md#人間の作業が必要なブロッカー) を参照してください。
-> フロントエンドは**設計（Phase 4）まで完了**し、実装（Phase 5）は未着手です。
-> 画面構成・ディレクトリ構成・状態管理方針は [`docs/frontend/`](./docs/frontend/) を参照してください。
 
 ## 概要
 
@@ -53,8 +55,16 @@ OpenOwl/
 │           ├── deno.json
 │           ├── _shared/   # domain / application / infrastructure / http
 │           └── generate-synonyms/
-├── frontend/              # ⬜ Phase 5 で作成
-│   └── ...                # React Native (Expo) アプリ本体
+├── frontend/              # ✅ Phase 5 で実装済み
+│   ├── package.json
+│   ├── app.config.ts      # Expo 動的設定
+│   ├── .env.example
+│   ├── app/               # Expo Router のルート定義のみ
+│   ├── src/
+│   │   ├── features/      # auth / synonyms(各 domain/api/hooks/ui)
+│   │   ├── shared/        # 2つ以上の feature から使うものだけ
+│   │   └── types/         # DB 型の生成物
+│   └── assets/
 └── .github/workflows/     # ⬜ Phase 6 で作成（CI）
 ```
 
@@ -126,6 +136,26 @@ npm run functions:serve
 > 残りの[Phase 3 の完了条件](./docs/backend-design.md#実装フェーズphase-3の完了条件)は
 > [`docs/roadmap.md`](./docs/roadmap.md) の注1にまとめてあります。
 
+### 5. フロントエンドの起動
+
+```bash
+cd frontend
+cp .env.example .env
+# .env に EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY を設定
+npm run start
+```
+
+Google ログインは `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` が未設定の間、ボタンを押すとエラーになります
+(OAuth クライアント発行はオーナー作業。上記「外部サービスの準備」参照)。
+Apple ログインはネイティブモジュールを含むため **Expo Go では動作しません**。
+Development Build(`npx expo run:ios` 等)または EAS Build が必要です([ADR-0003](./docs/adr/0003-expo-managed-workflow.md))。
+
+> **検証状況**: `npm run typecheck` / `npm run lint` は通っています(TypeScript strict、ESLint ともにエラー0件)。
+> ただしこの開発環境にはシミュレータ・実機がなく、**アプリを実際に起動しての動作確認・
+> 画面遷移の確認は未実施**です。特に Google/Apple サインインのネイティブ連携、
+> SecureStore のチャンク分割保存(2KB制限への対応)は実機での確認を推奨します
+> ([`docs/frontend/state-management.md`](./docs/frontend/state-management.md))。
+
 ## 環境変数
 
 秘密情報は**リポジトリにコミットしません**。各ディレクトリに `.env.example` を置き、
@@ -156,6 +186,7 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase プロジェクト URL |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key（旧 anon key）。RLS 前提で公開してよい |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google Sign-In 用の Web クライアント ID。未設定でも起動はできるが Google ログインは失敗する |
 
 > ⚠️ Supabase の **secret key（旧 service_role key）と `GEMINI_API_KEY` を
 > `frontend/` 側に置くことは絶対に禁止**です。これらはサーバー側専用です。
@@ -163,21 +194,23 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 
 ## 開発コマンド
 
-`⬜` は該当フェーズで実装され次第、有効になります。✅ のコマンドは実装済みですが、
-`lint` / `typecheck` はこの開発環境に Deno がないため未実行です（上記の「検証状況」を参照）。
+`⬜` は該当フェーズで実装され次第、有効になります。✅ のコマンドは実装済みです。
+ルート直下から実行すると `backend`(Deno)と `frontend`(npm workspace)の両方に処理を振り分けます。
+バックエンド側の `lint` / `typecheck` はこの開発環境に Deno がないため未実行です（上記の「検証状況」を参照）。
+フロントエンド側は `npx tsc --noEmit` / `npx eslint .` の両方をこの開発環境で実行し、エラー0件を確認済みです。
 
 | コマンド | 内容 | 状態 |
 | --- | --- | --- |
 | `npm run supabase:start` / `supabase:stop` | ローカル Supabase スタックの起動・停止 | ✅ 実装済み |
 | `npm run db:reset` | ローカル DB を再作成しマイグレーションを適用 | ✅ 実装済み |
 | `npm run db:diff -- <name>` | スキーマ差分から新規マイグレーションを生成 | ✅ 実装済み |
-| `npm run db:types` | DB から TypeScript 型を生成（`backend/.../database.types.ts` を上書き） | ✅ 実装済み |
+| `npm run db:types` | DB から TypeScript 型を生成(backend/frontend 双方の `database.types.ts` を上書き) | ✅ 実装済み |
 | `npm run functions:serve` | Edge Functions をローカル起動（`backend/.env` を読み込む） | ✅ 実装済み |
 | `npm run functions:deploy` | `generate-synonyms` をデプロイ | ✅ 実装済み |
-| `npm run lint` | `deno lint` | ✅ 実装済み |
-| `npm run typecheck` | `deno check`（エントリーポイントから import グラフ全体を検査） | ✅ 実装済み |
-| `npm run start` | Expo 開発サーバの起動 | ⬜ Phase 5 |
-| `npm run ios` / `npm run android` | 各プラットフォームでの起動 | ⬜ Phase 5 |
+| `npm run start` | Expo 開発サーバの起動(frontend) | ✅ 実装済み |
+| `npm run ios` / `npm run android` | 各プラットフォームでの起動(frontend) | ✅ 実装済み(実機・シミュレータでの検証は未実施) |
+| `npm run lint` | `deno lint`(backend) + `eslint .`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
+| `npm run typecheck` | `deno check`(backend) + `tsc --noEmit`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
 | `npm run test:e2e` | E2E テスト（実 Supabase / 実 Gemini に接続） | ⬜ Phase 6 |
 
 ## 開発方針（要点）

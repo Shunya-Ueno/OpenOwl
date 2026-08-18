@@ -1,0 +1,44 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "@react-native-community/netinfo": "^12.0.1",
+    "@react-native-google-signin/google-signin": "^16.1.4",
+    "@supabase/supabase-js": "^2.112.3",
+    "@tanstack/react-query": "^5.101.4",
+    "expo": "~57.0.14",
+    "expo-apple-authentication": "^57.0.1",
+    "expo-constants": "^57.0.12",
+    "expo-crypto": "^57.0.1",
+    "expo-linking": "^57.0.6",
+    "expo-router": "^57.0.14",
+    "expo-secure-store": "^57.0.1",
+    "expo-splash-screen": "^57.0.7",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-hook-form": "^7.85.0",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "^5.9.0",
+    "react-native-screens": "^4.27.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "babel-preset-expo": "^57.0.7",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "^57.0.1",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:types": "cd ../backend && supabase gen types typescript --local > ../frontend/src/types/database.types.ts"
+  },
+  "private": true
+}

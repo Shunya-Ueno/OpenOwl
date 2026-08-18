@@ -7,7 +7,7 @@
 node_modules/
 npm-debug.log*
 
-# Expo / React Native (Phase 5 以降)
+# Expo / React Native
 .expo/
 dist/
 web-build/

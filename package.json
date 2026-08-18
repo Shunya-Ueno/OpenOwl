@@ -2,15 +2,25 @@
   "name": "openowl",
   "private": true,
   "description": "OpenOwl - 外国語学習モバイルアプリ (monorepo root)",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
     "supabase:start": "cd backend && npm run supabase:start",
     "supabase:stop": "cd backend && npm run supabase:stop",
     "db:reset": "cd backend && npm run db:reset",
     "db:diff": "cd backend && npm run db:diff --",
-    "db:types": "cd backend && npm run db:types",
+    "db:types": "cd backend && npm run db:types && cd ../frontend && npm run db:types",
     "functions:serve": "cd backend && npm run functions:serve",
     "functions:deploy": "cd backend && npm run functions:deploy",
-    "lint": "cd backend && npm run lint",
-    "typecheck": "cd backend && npm run typecheck"
+    "start": "npm run start --workspace=frontend",
+    "ios": "npm run ios --workspace=frontend",
+    "android": "npm run android --workspace=frontend",
+    "lint": "npm run lint:backend && npm run lint:frontend",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "npm run lint --workspace=frontend",
+    "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
+    "typecheck:backend": "cd backend && npm run typecheck",
+    "typecheck:frontend": "npm run typecheck --workspace=frontend"
   }
 }

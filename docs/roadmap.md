@@ -35,7 +35,7 @@ App Store 掲載を目標とした外国語学習アプリ。
 | 2 | バックエンド設計（DBスキーマ、Edge Functions、API仕様、RLS） | Opus / Fable（設計） | ✅ 完了 |
 | 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | 🟡 Supabase プロジェクトへ適用・デプロイ済み / Gemini API 未接続(注1) |
 | 4 | フロントエンド設計（画面構成、状態管理、ディレクトリ構造） | Opus / Fable（設計） | ✅ 完了 |
-| 5 | フロントエンド実装 | Sonnet（実装） | ⬜ 未着手 |
+| 5 | フロントエンド実装 | Sonnet（実装） | 🟡 コード実装済み / 実機・シミュレータでの検証は未実施(注2) |
 | 6 | E2Eテスト・CI 設定 | Sonnet（実装） | ⬜ 未着手 |
 
 **Phase 2 完了時点でいったん停止し、人間のレビューを受ける。**
@@ -60,6 +60,35 @@ App Store 掲載を目標とした外国語学習アプリ。
 > - `deno lint` / `deno check` によるコンパイル確認（この作業環境に Deno がないため未実行）
 >
 > オーナーが `GEMINI_API_KEY` を登録し次第、上記の残項目を実施して Phase 3 を ✅ 完了にしてください。
+
+> **注2（Phase 5 の状態について）**: `frontend/`(Expo Router + TypeScript)を
+> [`docs/frontend/screens.md`](./frontend/screens.md) 以下の設計に基づいて実装しました。
+>
+> **実施済み**:
+> - 画面7枚 + パスワード再設定画面(screens.md で推奨、オーナー確認済み)をすべて実装
+> - `features/{auth,synonyms}/{domain,api,hooks,ui}` の構成、`shared/` の共通化(directory-structure.md 通り)
+> - 認証状態は `AuthProvider`(Context)、サーバ状態は TanStack Query、類義語生成は
+>   **useMutation**(useQuery にすると画面復帰のたびに再課金されうるため。state-management.md)
+> - SecureStore の 2KB 制限に対するチャンク分割保存アダプタ(`SecureSessionStorage`)
+> - `npx tsc --noEmit` / `npx eslint .` を実行し、エラー0件を確認
+> - `npx expo config` の評価に成功、`expo-doctor` は21項目中19件通過
+>   (残り2件はこの環境からの外部ホストへの到達がブロックされているための誤検知)
+>
+> **未実施**:
+> - 実機・シミュレータでの起動確認、画面遷移・フォーム操作の目視確認(この開発環境に
+>   シミュレータがないため)
+> - Google/Apple サインインの実接続確認(OAuth クライアント未発行のため。下記ブロッカー参照)
+> - `deno` 側と異なり、こちらの `lint`/`typecheck` は実行・確認済み
+>
+> **設計からの差分・スコープ判断**(実装時に決定。詳細はコード内コメント参照):
+> - **アカウント削除画面は実装したが、対応する `delete-account` Edge Function は未実装。**
+>   呼び出すと失敗する。バックエンド側の追加実装(Phase 3 の追加スコープ)が必要
+>   (`frontend/src/features/auth/api/SupabaseAuthClient.ts` にコメントで明記)
+> - 「前回の結果を表示」フォールバック(error-handling.md)は、簡易版として
+>   ホーム画面のエラー時に履歴タブへの導線を表示する形に留めた。単語ごとの
+>   インライン再表示は行っていない(新しいクエリ方法の追加を避けるための判断)
+>
+> 実機・シミュレータでの確認と、上記の差分に対する対応方針の判断をお願いします。
 
 ### モデル使い分けの原則
 
