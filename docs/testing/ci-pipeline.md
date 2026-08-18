@@ -24,7 +24,7 @@ flowchart TD
 | ワークフロー | 契機 | 所要 | シークレット | 課金 |
 | --- | --- | --- | --- | --- |
 | [`ci.yml`](../../.github/workflows/ci.yml) | すべての push と PR | 〜1分 | 不要 | なし |
-| [`integration.yml`](../../.github/workflows/integration.yml) | PR（`run-integration` ラベル）+ 手動 | 〜3分 | 必要 | LLM 1回程度 |
+| [`integration.yml`](../../.github/workflows/integration.yml) | PR に `run-integration` ラベルが付いた時 + 手動 | 〜3分 | 必要 | LLM 1回程度 |
 | [`e2e.yml`](../../.github/workflows/e2e.yml) | 手動 + 週次 | 〜20分 | 必要 | LLM 0〜1回 |
 
 ### なぜ E2E を毎プッシュで回さないか
@@ -36,7 +36,9 @@ flowchart TD
 - 代わりに `ci.yml` を毎回・高速に回し、E2E は**マージ前の確認**として明示的に走らせます。
 
 `ci.yml` が緑でないマージを防ぎたい場合は、リポジトリ設定で
-`lint-and-typecheck` を必須チェックに指定してください（オーナー作業）。
+**`backend (deno lint + check)` と `frontend (eslint + tsc)`** を必須チェックに指定してください（オーナー作業）。
+必須チェック名はワークフローの `jobs.<id>.name` と完全一致する必要があります。
+存在しない名前を指定すると、永久に報告されないチェックを待って全 PR がマージ不能になります。
 
 ## 各ワークフローの構成
 
@@ -56,9 +58,14 @@ flowchart TD
 
 **テスト用 Supabase プロジェクトと実 Gemini API に接続します。**
 
-- 契機を「`run-integration` ラベルの付いた PR」と「手動実行」に絞っています。
-  すべての PR で自動実行しないのは、外部からの PR でシークレットが使えず
-  必ず失敗するのを避けるためです（GitHub は fork PR にシークレットを渡しません）。
+- 契機は「`run-integration` ラベルが**付いた瞬間**」と「手動実行」だけです。
+  `synchronize`（push のたび）を含めないのは、ラベル付き PR へ10回 push すると
+  課金付きのスイートが10回キューに積まれ、古いコミットのテストが直列に消化されるためです。
+  再実行したいときはラベルを付け直します。
+- **fork ガードは `if:` で別途行います。** ラベルは「コストの門」であって
+  「fork の門」ではありません。`head.repo.full_name` を確認しないと、
+  外部コントリビュータの PR にラベルを付けた瞬間にシークレット空で実行され、
+  「相手のブランチが壊れている」ように読める赤 X が出ます（実際は権限の問題）。
 - 同時実行を `concurrency` で1本に制限します。
   テスト用プロジェクトを共有しているため、並行実行するとレート制限や
   データの取り合いで不安定になります。
@@ -121,5 +128,5 @@ flowchart TD
 Phase 6 を有効にするために、以下は人間の作業が必要です。
 
 1. GitHub リポジトリの Settings → Secrets に上記3つを登録する
-2. （任意）`lint-and-typecheck` を必須チェックに指定する
+2. （任意）`backend (deno lint + check)` / `frontend (eslint + tsc)` を必須チェックに指定する
 3. （任意）Actions の使用量上限を確認する。プライベートリポジトリでは実行時間が課金対象

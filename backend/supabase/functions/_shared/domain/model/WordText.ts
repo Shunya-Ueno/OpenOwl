@@ -1,7 +1,9 @@
 import { ValidationError } from '../error/AppError.ts';
 
-const WORD_PATTERN = /^[A-Za-z][A-Za-z'\- ]*$/;
-const MAX_LENGTH = 64;
+/** 許可する単語の形。統合テストからも参照するため export する(重複定義を避ける)。 */
+export const WORD_PATTERN = /^[A-Za-z][A-Za-z'\- ]*$/;
+export const WORD_MAX_LENGTH = 64;
+const MAX_LENGTH = WORD_MAX_LENGTH;
 
 /**
  * ユーザーが入力した英単語を表す値オブジェクト。

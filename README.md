@@ -199,6 +199,13 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 > `frontend/` 側に置くことは絶対に禁止**です。これらはサーバー側専用です。
 > 詳細は [`docs/security.md`](./docs/security.md) を参照。
 
+### テスト（`backend/.env.test`）
+
+統合テストと E2E の seed が使います。**テスト専用プロジェクト**を指すこと。
+項目は [`backend/.env.test.example`](./backend/.env.test.example) にまとめてあります
+（`TEST_SUPABASE_*` 3つと `E2E_USER_EMAIL` / `E2E_USER_PASSWORD`）。
+CI では GitHub Actions の Secrets からこのファイルが書き出されます。
+
 ## 開発コマンド
 
 `⬜` は該当フェーズで実装され次第、有効になります。✅ のコマンドは実装済みです。
@@ -219,8 +226,8 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 | `npm run lint` | `deno lint`(backend) + `eslint .`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
 | `npm run typecheck` | `deno check`(backend) + `tsc --noEmit`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
 | `npm run test:integration` | バックエンド統合テスト（実 Supabase / 実 Gemini。`backend/.env.test` が必要） | 🟡 実装済み・未実行 |
+| `npm run e2e:seed` | E2E 用のテストユーザーを確認済み状態で作成（冪等） | 🟡 実装済み・未実行 |
 | `npm run e2e` | Maestro による E2E（Development Build とエミュレータが必要） | 🟡 実装済み・未実行 |
-| `npm run e2e:seed` | E2E 用のテストユーザーを確認済み状態で作成 | 🟡 実装済み・未実行 |
 
 ## 開発方針（要点）
 

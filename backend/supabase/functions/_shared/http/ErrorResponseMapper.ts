@@ -1,7 +1,7 @@
 import { AppError, InternalError, RateLimitError, type ErrorCode } from '../domain/error/AppError.ts';
 import type { StructuredLogger } from '../infrastructure/logging/StructuredLogger.ts';
 
-interface ErrorEnvelope {
+export interface ErrorEnvelope {
   readonly error: {
     readonly code: ErrorCode;
     readonly message: string;

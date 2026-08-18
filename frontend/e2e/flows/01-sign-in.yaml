@@ -4,6 +4,7 @@
 # docs/adr/0011-maestro-for-e2e.md)。
 appId: ${APP_ID}
 ---
+# サインイン自体を検証するフローなので、ここだけは状態を消してから始める。
 - clearState
 - launchApp
 

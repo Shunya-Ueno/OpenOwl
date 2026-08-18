@@ -1,14 +1,15 @@
 # バックエンド統合テスト。**テスト用 Supabase と実 Gemini API に接続する**。
 #
-# 契機を絞っているのは、実 API に課金が発生すること(docs/adr/0006)と、
-# フォークからの PR にはシークレットが渡らず必ず失敗することの2点による
+# 契機を絞っているのは、実 API に課金が発生すること(docs/adr/0006)による
 # (docs/testing/ci-pipeline.md)。
 name: Integration tests
 
 on:
-  # `run-integration` ラベルの付いた PR でのみ自動実行する。
+  # `run-integration` ラベルが「付いた瞬間」のみ自動実行する。
+  # synchronize を含めると、ラベル付き PR への毎 push で課金スイートが再実行され、
+  # 古いコミットのテストが直列キューに積まれる。再実行したいときはラベルを付け直す。
   pull_request:
-    types: [labeled, synchronize]
+    types: [labeled]
   workflow_dispatch:
 
 # テスト用プロジェクトを共有しているため、同時に走らせない。
@@ -21,10 +22,13 @@ jobs:
   integration:
     name: backend integration (real Supabase + Gemini)
     runs-on: ubuntu-latest
-    # ラベル契機のときだけ走らせる。手動実行は常に許可。
+    # ラベルは「コストの門」であって「fork の門」ではない。head リポジトリも確認しないと、
+    # 外部コントリビュータの PR にラベルを付けた瞬間シークレット空で実行され、
+    # 「相手のブランチが壊れている」ように見える赤 X が出る(実際は権限の問題)。
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'run-integration')
+      (github.event.label.name == 'run-integration' &&
+       github.event.pull_request.head.repo.full_name == github.repository)
     steps:
       - uses: actions/checkout@v4
 
@@ -32,13 +36,26 @@ jobs:
         with:
           deno-version: v2.x
 
-      - name: Run integration tests
+      # ローカルと同じ1本のスクリプトを使うため、Secrets から .env.test を書き出す。
+      # :ci 用の別スクリプトを持つと、権限フラグ等の変更が片側にだけ適用され、
+      # 「ローカルは緑・CI は失敗」という再現困難な乖離を生む。
+      # ランナーは実行ごとに破棄されるため、ファイルは残らない。
+      - name: Write .env.test from secrets
         working-directory: backend
         env:
-          # GEMINI_API_KEY はここに登録しない。Edge Function が Supabase 側の
-          # シークレットとして保持しており、CI は Function を呼ぶだけでよい
-          # (CI に置かない鍵は漏れない。docs/testing/ci-pipeline.md)。
           TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           TEST_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
           TEST_SUPABASE_SECRET_KEY: ${{ secrets.TEST_SUPABASE_SECRET_KEY }}
-        run: npm run test:integration:ci
+        run: |
+          # GEMINI_API_KEY はここに書かない。Edge Function が Supabase 側の
+          # シークレットとして保持しており、CI は Function を呼ぶだけでよい
+          # (CI に置かない鍵は漏れない。docs/testing/ci-pipeline.md)。
+          {
+            printf 'TEST_SUPABASE_URL=%s\n' "$TEST_SUPABASE_URL"
+            printf 'TEST_SUPABASE_PUBLISHABLE_KEY=%s\n' "$TEST_SUPABASE_PUBLISHABLE_KEY"
+            printf 'TEST_SUPABASE_SECRET_KEY=%s\n' "$TEST_SUPABASE_SECRET_KEY"
+          } > .env.test
+
+      - name: Run integration tests
+        working-directory: backend
+        run: npm run test:integration

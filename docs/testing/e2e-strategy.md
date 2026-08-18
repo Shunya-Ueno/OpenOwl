@@ -102,16 +102,23 @@ MVP の画面はアニメーションをほとんど持たず、その利点が�
 ## 実行方法
 
 ```bash
-# バックエンド統合テスト（ローカル）
+# 準備（1回だけ）: テスト用プロジェクトの URL・キーと E2E アカウントを設定する
 cd backend
-cp .env.test.example .env.test   # テスト用プロジェクトの URL とキーを設定
-npm run test:integration
+cp .env.test.example .env.test
+
+# バックエンド統合テスト
+npm run test:integration         # backend/ から
 
 # E2E（Maestro。事前に Development Build のインストールが必要）
-cd frontend
-npm run e2e:seed                 # テスト用ユーザーを作成
-npm run e2e                      # Maestro のフローを実行
+npm run e2e:seed                 # backend/ から。テスト用ユーザーを作成（冪等）
+cd ../frontend && npm run e2e    # Maestro のフローを実行
 ```
+
+ルート直下からは `npm run test:integration` / `npm run e2e:seed` / `npm run e2e` で
+同じことができます（どこから叩いても同じスクリプトに届くよう委譲してあります）。
+
+> Maestro は必ず**ワークスペースルート（`frontend/e2e`）**を指定して実行します。
+> `flows/` を直接指定すると `config.yaml` が読まれず `${APP_ID}` が未解決になります。
 
 > **未検証の注意**: この作業環境には Deno・Supabase CLI・エミュレータのいずれもなく、
 > **ここに書いたテストは一度も実行できていません**。

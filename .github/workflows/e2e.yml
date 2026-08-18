@@ -41,9 +41,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # E2E 用ユーザーを「確認済み」の状態で用意する。
-      # サインアップ自体は E2E の対象外(メール確認の受信箱操作が必要なため)。
-      - name: Seed E2E user
+      # ローカルと同じスクリプトを使うため、Secrets から .env.test を書き出す。
+      # ランナーは実行ごとに破棄されるためファイルは残らない。
+      - name: Write .env.test from secrets
         working-directory: backend
         env:
           TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
@@ -51,22 +51,37 @@ jobs:
           TEST_SUPABASE_SECRET_KEY: ${{ secrets.TEST_SUPABASE_SECRET_KEY }}
           E2E_USER_EMAIL: ${{ vars.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
-        run: npm run e2e:seed:ci
+        run: |
+          {
+            printf 'TEST_SUPABASE_URL=%s\n' "$TEST_SUPABASE_URL"
+            printf 'TEST_SUPABASE_PUBLISHABLE_KEY=%s\n' "$TEST_SUPABASE_PUBLISHABLE_KEY"
+            printf 'TEST_SUPABASE_SECRET_KEY=%s\n' "$TEST_SUPABASE_SECRET_KEY"
+            printf 'E2E_USER_EMAIL=%s\n' "$E2E_USER_EMAIL"
+            printf 'E2E_USER_PASSWORD=%s\n' "$E2E_USER_PASSWORD"
+          } > .env.test
+
+      # E2E 用ユーザーを「確認済み」の状態で用意する(冪等。既存なら何もしない)。
+      # サインアップ自体は E2E の対象外(メール確認の受信箱操作が必要なため)。
+      - name: Seed E2E user
+        working-directory: backend
+        run: npm run e2e:seed
 
       - name: Generate native project
         working-directory: frontend
-        env:
-          # アプリが接続するのは**テスト用**プロジェクト。
-          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      # **release ビルドにする理由**: debug ビルドは JS バンドルを APK に同梱せず、
+      # 実行時に Metro(localhost:8081)から取得する。CI には Metro がないため
+      # debug APK では起動直後に "Unable to load script" で全フローが落ちる。
+      # release なら JS バンドルと EXPO_PUBLIC_* がビルド時に埋め込まれる。
+      # (Expo の prebuild テンプレートは release にも debug keystore を割り当てるため、
+      #  署名鍵を用意しなくてもビルドできる)
+      - name: Build release APK
         working-directory: frontend/android
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleRelease --no-daemon
 
       - name: Install Maestro
         run: |
@@ -85,14 +100,29 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r frontend/android/app/build/outputs/apk/debug/app-debug.apk
-            maestro test frontend/e2e/flows
+            adb install -r frontend/android/app/build/outputs/apk/release/app-release.apk
+            # ワークスペースルート(config.yaml のある e2e/)を指定する。
+            # flows/ を直接指定すると config.yaml が読まれず ${APP_ID} が未解決になる。
+            maestro test \
+              -e E2E_USER_EMAIL="$E2E_USER_EMAIL" \
+              -e E2E_USER_PASSWORD="$E2E_USER_PASSWORD" \
+              frontend/e2e
 
       # 失敗時の調査用。Maestro はスクリーンショットと階層ダンプを残す。
+      # upload-artifact は `~` をシェル展開しない(リテラルなディレクトリ名として扱う)ため、
+      # 一度ワークスペース配下へコピーしてから上げる。
+      # これを怠ると、まさに調査したい失敗時に "No files were found" で証跡が消える。
+      - name: Collect Maestro output
+        if: failure()
+        run: |
+          mkdir -p maestro-artifacts
+          cp -r "$HOME/.maestro/tests" maestro-artifacts/ 2>/dev/null || true
+
       - name: Upload Maestro artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: maestro-debug-output
-          path: ~/.maestro/tests/**
+          path: maestro-artifacts
+          if-no-files-found: warn
           retention-days: 7

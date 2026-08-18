@@ -34,15 +34,21 @@ OpenOwl は外国語学習モバイルアプリです。MVP のスコープは�
 OpenOwl/
 ├── docs/                       # 設計ドキュメント（実装より先に更新する）
 │   └── adr/                    # 設計判断の記録（追記のみ）
-├── backend/                    # Phase 3 で作成
+├── backend/
 │   └── supabase/
 │       ├── config.toml
 │       ├── migrations/         # <timestamp>_<name>.sql（前方適用のみ）
-│       └── functions/
-│           ├── _shared/        # 共通レイヤー（domain / infrastructure / http）
-│           └── generate-synonyms/
-├── frontend/                   # Phase 5 で作成（React Native アプリ本体）
-└── .github/workflows/          # Phase 6 で作成
+│       ├── functions/
+│       │   ├── _shared/        # 共通レイヤー（domain / application / infrastructure / http）
+│       │   └── generate-synonyms/
+│       └── tests/              # 実 Supabase / 実 Gemini に対する統合テスト
+├── frontend/                   # React Native (Expo) アプリ本体
+│   ├── app/                    # Expo Router のルート定義のみ（実装は src/ に置く）
+│   ├── src/
+│   │   ├── features/           # 機能単位（auth / synonyms）
+│   │   └── shared/             # 2つ以上の feature から使うものだけ
+│   └── e2e/                    # Maestro のフロー
+└── .github/workflows/          # ci.yml / integration.yml / e2e.yml
 ```
 
 `frontend/` と `backend/` は相互に import しない。両者の契約は
@@ -50,8 +56,6 @@ OpenOwl/
 共通型パッケージ（`packages/shared`）は MVP では作らない（[ADR-0002](./docs/adr/0002-shared-types-deferred.md)）。
 
 ## 開発コマンド
-
-実装フェーズ到達前のものは未整備。整備され次第このセクションを更新すること。
 
 ```bash
 # Supabase（backend/ で実行、またはルートの npm script 経由）
@@ -68,10 +72,18 @@ npm run start                   # Expo 開発サーバ
 npm run ios / npm run android
 
 # 品質チェック（コミット前に必ず実行）
-npm run lint
-npm run typecheck
-npm run test:e2e                # 実サービス接続。CI ではテスト用プロジェクトを使用
+npm run lint                    # deno lint（backend）+ eslint（frontend）
+npm run typecheck               # deno check（backend）+ tsc（frontend）
+
+# テスト（実サービス接続。backend/.env.test が必要）
+npm run test:integration        # 統合テスト（RLS + generate-synonyms の契約）
+npm run e2e:seed                # E2E 用ユーザーを確認済み状態で作成
+npm run e2e                     # Maestro（Development Build とエミュレータが必要）
 ```
+
+**コマンドを追加・改名したら、このセクションと `README.md` の開発コマンド表を
+同一コミットで更新すること。** ここが実態とズレると、指示に従った作業が
+`Missing script` で止まる。
 
 ## コーディング規約
 

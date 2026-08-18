@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import type { TestEnv } from './TestEnv.ts';
+import type { ErrorEnvelope } from '../../supabase/functions/_shared/http/ErrorResponseMapper.ts';
 
 export interface SynonymsApiResponse {
   readonly status: number;
@@ -27,20 +29,17 @@ export class SynonymsApi {
     const response = await fetch(this.env.functionUrl('generate-synonyms'), {
       method,
       headers,
-      ...(method === 'POST' || method === 'PUT' ? { body: JSON.stringify(body) } : {}),
+      // fetch がボディを許さないのは GET / HEAD のみ。ここを許可リスト方式にすると
+      // 将来 DELETE などの 405 テストを足したときに黙ってボディなしで送られ、
+      // 「違う理由で」テストが通ってしまう。
+      body: method === 'GET' || method === 'HEAD' ? undefined : JSON.stringify(body),
     });
 
-    const text = await response.text();
-    let parsed: unknown = null;
-    if (text.length > 0) {
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = text;
-      }
-    }
-
-    return { status: response.status, body: parsed, headers: response.headers };
+    return {
+      status: response.status,
+      body: await this.readBody(response),
+      headers: response.headers,
+    };
   }
 
   async preflight(): Promise<SynonymsApiResponse> {
@@ -54,31 +53,40 @@ export class SynonymsApi {
     });
     return { status: response.status, body: null, headers: response.headers };
   }
+
+  private async readBody(response: Response): Promise<unknown> {
+    const text = await response.text();
+    if (text.length === 0) return null;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
 }
 
-/** エラーエンベロープ(docs/api-spec.md)の形を検証しつつ取り出す。 */
-export function expectErrorEnvelope(body: unknown): {
-  code: string;
-  message: string;
-  retryable: boolean;
-  requestId: string;
-} {
-  if (typeof body !== 'object' || body === null || !('error' in body)) {
-    throw new Error(`エラーエンベロープの形ではありません: ${JSON.stringify(body)}`);
+// 外部からの応答は unknown で受けて検証で絞り込む(CLAUDE.md の TypeScript 規約)。
+const errorEnvelopeSchema = z.object({
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+    retryable: z.boolean(),
+    retryAfterSeconds: z.number().optional(),
+    requestId: z.string(),
+  }),
+});
+
+/**
+ * エラーエンベロープ(docs/api-spec.md)の形を検証しつつ取り出す。
+ * 戻り値の型を本体の ErrorEnvelope に合わせているため、
+ * サーバ側でフィールドが増減すると型エラーとしてここで気づける。
+ */
+export function expectErrorEnvelope(body: unknown): ErrorEnvelope['error'] {
+  const parsed = errorEnvelopeSchema.safeParse(body);
+  if (!parsed.success) {
+    throw new Error(
+      `エラーエンベロープの形ではありません: ${JSON.stringify(body)} (${parsed.error.message})`,
+    );
   }
-  const error = (body as { error: Record<string, unknown> }).error;
-  if (
-    typeof error.code !== 'string' ||
-    typeof error.message !== 'string' ||
-    typeof error.retryable !== 'boolean' ||
-    typeof error.requestId !== 'string'
-  ) {
-    throw new Error(`エラーエンベロープのフィールドが不足しています: ${JSON.stringify(body)}`);
-  }
-  return {
-    code: error.code,
-    message: error.message,
-    retryable: error.retryable,
-    requestId: error.requestId,
-  };
+  return parsed.data.error as ErrorEnvelope['error'];
 }

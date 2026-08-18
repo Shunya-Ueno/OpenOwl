@@ -36,9 +36,14 @@ jobs:
 
       # テストコード自体も型が壊れていないことを確認する。
       # テストは実行しない(シークレットが必要なため integration.yml の担当)。
+      #
+      # tests/ 配下を**すべて**対象にする。*.test.ts だけに絞ると、
+      # tests/support/ と tests/scripts/seed-e2e-user.ts が検査から漏れる。
+      # seed スクリプトは週次の E2E でしか実行されないため、型崩れが
+      # 数日後にエミュレータとビルドの時間を消費した後で初めて露見する。
       - name: Typecheck (tests)
         working-directory: backend
-        run: deno check --config supabase/functions/deno.json tests/*.test.ts
+        run: deno check --config supabase/functions/deno.json $(find tests -name '*.ts')
 
   frontend:
     name: frontend (eslint + tsc)

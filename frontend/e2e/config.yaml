@@ -1,11 +1,15 @@
 # Maestro のワークスペース設定。
-# フローは flows/ に置き、番号順に実行されることを前提に書く
-# (01 でサインインし、以降はログイン済みの状態を引き継ぐ)。
+#
+# **このファイルは `maestro test <このディレクトリ>` を指定したときにだけ読まれる。**
+# flows/ を直接指定すると config.yaml が読まれず ${APP_ID} が未解決になるため、
+# 実行は必ずワークスペースルート(e2e/)を指定すること。
 flows:
   - flows/*.yaml
 
-# 全フローで共有する変数。実値は環境変数から渡す:
-#   E2E_USER_EMAIL / E2E_USER_PASSWORD
-# (ユーザーは backend の `npm run e2e:seed` で確認済み状態として事前作成する)
 env:
+  # 静的な値なのでここに置く。app.config.ts の ANDROID_PACKAGE と一致させること。
   APP_ID: com.openowl.app
+
+# E2E_USER_EMAIL / E2E_USER_PASSWORD は秘密情報なのでここには書かない。
+# Maestro はシェルの環境変数を自動注入しないため、実行時に -e で明示的に渡す
+# (frontend/package.json の e2e スクリプトを参照)。

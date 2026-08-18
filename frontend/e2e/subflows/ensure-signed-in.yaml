@@ -1,0 +1,28 @@
+# サインイン済みの状態を保証する共有サブフロー。
+#
+# 各フローが「前の番号のフローがログインを残している」ことに暗黙依存すると、
+# 単発実行(失敗調査の常道)がサインイン画面で止まり、対象機能とは無関係な
+# エラーに見える。runFlow でこれを先頭に置き、各フローを自己完結させる。
+appId: ${APP_ID}
+---
+- launchApp
+
+# 既にホームなら何もしない。
+- runFlow:
+    when:
+      visible:
+        id: 'sign-in-email-input'
+    commands:
+      - tapOn:
+          id: 'sign-in-email-input'
+      - inputText: ${E2E_USER_EMAIL}
+      - tapOn:
+          id: 'sign-in-password-input'
+      - inputText: ${E2E_USER_PASSWORD}
+      - hideKeyboard
+      - tapOn:
+          id: 'sign-in-submit-button'
+      - extendedWaitUntil:
+          visible:
+            id: 'home-word-input'
+          timeout: 20000

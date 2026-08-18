@@ -4,13 +4,11 @@
 # テスト用の単語は固定し、無駄なトークン消費を避ける(docs/testing/e2e-strategy.md)。
 appId: ${APP_ID}
 ---
-- launchApp
-
-- assertVisible:
-    id: 'home-word-input'
+- runFlow: ../subflows/ensure-signed-in.yaml
 
 - tapOn:
     id: 'home-word-input'
+- eraseText
 - inputText: 'happy'
 - hideKeyboard
 

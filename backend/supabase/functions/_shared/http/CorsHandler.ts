@@ -1,5 +1,6 @@
-const ALLOWED_HEADERS = 'authorization, content-type';
-const ALLOWED_METHODS = 'POST, OPTIONS';
+/** 統合テストからも参照するため export する(テスト側での再ハードコードを避ける)。 */
+export const ALLOWED_HEADERS = 'authorization, content-type';
+export const ALLOWED_METHODS = 'POST, OPTIONS';
 
 /** CORS ヘッダの生成とプリフライト(OPTIONS)応答を担当する。 */
 export class CorsHandler {

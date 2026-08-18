@@ -5,17 +5,18 @@ import type { SearchHistoryEntry } from '../domain/SearchHistoryEntry';
 interface HistoryListItemProps {
   entry: SearchHistoryEntry;
   onPress: () => void;
-  /** 一覧内の位置。E2E から先頭の項目を掴むために使う(id は uuid で予測できないため)。 */
-  index: number;
 }
 
-export function HistoryListItem({ entry, onPress, index }: HistoryListItemProps) {
+export function HistoryListItem({ entry, onPress }: HistoryListItemProps) {
   const preview = entry.generation?.synonyms.map((s) => s.term).join('、') ?? '';
 
   return (
     <Pressable
       onPress={onPress}
-      testID={`history-item-${index}`}
+      // エンティティ由来の testID にする。位置ベースにすると「どの行か」が
+      // 曖昧になり、E2E が古い履歴を掴んでも緑になってしまう。
+      // 先頭の行を掴みたいだけなら Maestro 側で index を指定できる。
+      testID={`history-item-${entry.id}`}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.textColumn}>

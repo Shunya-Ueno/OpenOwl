@@ -1,4 +1,14 @@
-/** 統合テストの設定。必須値が欠けていれば即座に失敗させる(テストが黙って素通りするのを防ぐ)。 */
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '../../supabase/functions/_shared/infrastructure/supabase/database.types.ts';
+
+/**
+ * 統合テストの設定と、テストが使う Supabase クライアントの生成。
+ *
+ * クライアント生成をここに集約しているのは、同じオプションの createClient が
+ * テスト側の各所に散ると、オプション変更(スキーマ指定・ヘッダ追加・キー方式の移行)の
+ * 適用漏れが起きるため。特に週次でしか動かない seed スクリプトでの漏れは
+ * 数日後のスケジュール実行で初めて表面化する。
+ */
 export class TestEnv {
   private constructor(
     readonly supabaseUrl: string,
@@ -29,7 +39,35 @@ export class TestEnv {
     return new TestEnv(url!, publishableKey!, secretKey!);
   }
 
+  /** RLS をバイパスする service role クライアント。テストデータの用意と後片付けに使う。 */
+  adminClient(): SupabaseClient<Database> {
+    return this.createTestClient(this.secretKey);
+  }
+
+  /**
+   * 一般ユーザーとしてのクライアント。RLS が適用される。
+   * accessToken を渡すとそのユーザーとして、渡さなければ anon として動く。
+   */
+  anonClient(accessToken?: string): SupabaseClient<Database> {
+    return this.createTestClient(
+      this.publishableKey,
+      accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    );
+  }
+
   functionUrl(name: string): string {
     return `${this.supabaseUrl}/functions/v1/${name}`;
+  }
+
+  private createTestClient(
+    key: string,
+    headers?: Record<string, string>,
+  ): SupabaseClient<Database> {
+    return createClient<Database>(this.supabaseUrl, key, {
+      // テストプロセスにセッションを残さない。残すとテスト間で認証状態が漏れ、
+      // RLS のテストが「実は通っていない」のに緑になりうる。
+      auth: { persistSession: false, autoRefreshToken: false },
+      ...(headers ? { global: { headers } } : {}),
+    });
   }
 }

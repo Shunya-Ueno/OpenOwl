@@ -101,16 +101,24 @@ App Store 掲載を目標とした外国語学習アプリ。
 >   `e2e.yml`（手動/週次）の3本に分割
 > - YAML の構文検証、フロントエンドの `tsc` / `eslint` は実行して確認
 >
+> **コードレビュー後の修正（同フェーズ内）**: E2E が起動できない3つの原因
+> （Maestro がワークスペース設定を読まない呼び出し方 / debug APK に JS バンドルが
+> 同梱されない / 認証情報がフローに届かない）、CI の運用事故2件（seed のページング欠陥、
+> ラベル付き PR への毎 push での課金再実行）、および「誤った理由で通る」RLS テストを修正しました。
+>
 > **未実施（重要）**:
 > - **テストを一度も実行していません。** この作業環境に Deno・Supabase CLI・
 >   Android エミュレータのいずれもなく、`deno check` すら通せていません。
 >   構文と参照は静的に確認しましたが、**動作は未検証**です
 > - CI ワークフローも GitHub 上で一度も走らせていません
+> - 特に **release APK でのビルドと Maestro のワークスペース指定**は、
+>   実際に1度動かして確かめる価値が高い箇所です
 >
 > **オーナー作業（これがないと Phase 6 は動きません）**:
 > - GitHub Secrets に `TEST_SUPABASE_URL` / `TEST_SUPABASE_PUBLISHABLE_KEY` /
 >   `TEST_SUPABASE_SECRET_KEY` / `E2E_USER_PASSWORD` を登録
 > - GitHub Variables に `E2E_USER_EMAIL` を登録
+>   （未登録でも既定値に落ちない設計にしたため、seed が明示的に失敗します）
 > - テスト用 Supabase プロジェクトに `GEMINI_API_KEY` を登録（Phase 3 から続くブロッカー。
 >   これがないと生成の成功パスのテストは失敗します）
 >

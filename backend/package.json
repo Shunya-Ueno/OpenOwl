@@ -12,10 +12,8 @@
     "functions:deploy": "supabase functions deploy generate-synonyms",
     "lint": "deno lint --config supabase/functions/deno.json supabase/functions",
     "typecheck": "deno check --config supabase/functions/deno.json supabase/functions/generate-synonyms/index.ts",
-    "test:integration": "deno test --allow-env --allow-net --config supabase/functions/deno.json --env-file=.env.test tests/",
-    "test:rls": "deno test --allow-env --allow-net --config supabase/functions/deno.json --env-file=.env.test tests/rls.test.ts",
-    "e2e:seed": "deno run --allow-env --allow-net --config supabase/functions/deno.json --env-file=.env.test tests/scripts/seed-e2e-user.ts",
-    "test:integration:ci": "deno test --allow-env --allow-net --config supabase/functions/deno.json tests/",
-    "e2e:seed:ci": "deno run --allow-env --allow-net --config supabase/functions/deno.json tests/scripts/seed-e2e-user.ts"
+    "test:integration": "deno test --allow-env --allow-net --allow-read --config supabase/functions/deno.json --env-file=.env.test tests/",
+    "test:rls": "deno test --allow-env --allow-net --allow-read --config supabase/functions/deno.json --env-file=.env.test tests/rls.test.ts",
+    "e2e:seed": "deno run --allow-env --allow-net --allow-read --config supabase/functions/deno.json --env-file=.env.test tests/scripts/seed-e2e-user.ts"
   }
 }

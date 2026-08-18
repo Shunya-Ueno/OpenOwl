@@ -1,7 +1,7 @@
 # サインアウトするとログイン画面へ戻ることを確認する。
 appId: ${APP_ID}
 ---
-- launchApp
+- runFlow: ../subflows/ensure-signed-in.yaml
 
 - tapOn: 'アカウント'
 
