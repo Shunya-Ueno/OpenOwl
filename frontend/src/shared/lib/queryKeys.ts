@@ -7,5 +7,6 @@
  */
 export const queryKeys = {
   searchHistory: (userId: string) => ['search-history', userId] as const,
-  searchHistoryItem: (id: string) => ['search-history', 'item', id] as const,
+  searchHistoryItem: (userId: string, id: string) =>
+    ['search-history', userId, 'item', id] as const,
 } as const;

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { FunctionsHttpError } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js';
 import { supabase } from '@/shared/api/supabaseClient';
 import { ApiError } from '@/shared/api/ApiError';
 import { Synonym, type PartOfSpeech } from '../domain/Synonym';
@@ -39,11 +39,21 @@ export class SynonymApiClient {
     });
 
     if (error) {
+      // Function が返した非2xx。本文にエラーエンベロープが入っている(docs/api-spec.md)。
       if (error instanceof FunctionsHttpError) {
         const body = await error.context.json().catch(() => null);
         throw ApiError.fromResponseBody(body);
       }
-      throw ApiError.fromNetworkFailure(error);
+      // 端末がネットワークに到達できなかった場合のみ「オフライン」と表示してよい。
+      if (error instanceof FunctionsFetchError) {
+        throw ApiError.fromNetworkFailure(error);
+      }
+      // FunctionsRelayError は Supabase 側のリレー/起動失敗。接続はできているため
+      // 「オフラインです」と出すと原因を誤って伝えることになる。
+      if (error instanceof FunctionsRelayError) {
+        throw ApiError.fromServiceUnavailable(error);
+      }
+      throw ApiError.fromUnexpected(error);
     }
 
     return this.toSynonymGeneration(data);

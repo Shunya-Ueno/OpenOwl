@@ -19,7 +19,10 @@ const synonymRowSchema = z.object({
 const historyRowSchema = z.object({
   id: z.string(),
   raw_input: z.string(),
-  outcome: z.enum(['generated', 'cache']),
+  // 列の CHECK 制約は 'failed' も許すため、スキーマからは除外しない。
+  // 除外すると getById で失敗行に当たったときに ZodError がそのまま
+  // 画面に表示される(list は .neq で除外しているので現れない)。
+  outcome: z.enum(['generated', 'cache', 'failed']),
   created_at: z.string(),
   words: z.object({ id: z.string(), text: z.string(), language: z.string() }),
   synonym_generations: z
@@ -95,7 +98,11 @@ export class SearchHistoryRepository {
         ? {
             id: parsed.synonym_generations.id,
             createdAt: new Date(parsed.synonym_generations.created_at),
-            synonyms: parsed.synonym_generations.synonyms.map(
+            // 埋め込みリレーションの並び順は PostgREST 側で保証されないため、
+            // ここで sort_order 昇順に整列する(ホーム画面の表示順と揃える)。
+            synonyms: [...parsed.synonym_generations.synonyms]
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map(
               (s) =>
                 new Synonym(
                   s.id,

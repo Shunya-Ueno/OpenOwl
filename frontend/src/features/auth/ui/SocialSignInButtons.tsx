@@ -9,6 +9,8 @@ interface SocialSignInButtonsProps {
   googleLoading: boolean;
   appleLoading: boolean;
   disabled: boolean;
+  /** Google のクライアント ID が未設定のときは false。押しても必ず失敗するため出さない。 */
+  showGoogle: boolean;
 }
 
 /**
@@ -22,17 +24,20 @@ export function SocialSignInButtons({
   googleLoading,
   appleLoading,
   disabled,
+  showGoogle,
 }: SocialSignInButtonsProps) {
   return (
     <View style={styles.container}>
-      <Button
-        label="Google で続ける"
-        variant="secondary"
-        onPress={onGooglePress}
-        loading={googleLoading}
-        disabled={disabled}
-        testID="sign-in-google-button"
-      />
+      {showGoogle ? (
+        <Button
+          label="Google で続ける"
+          variant="secondary"
+          onPress={onGooglePress}
+          loading={googleLoading}
+          disabled={disabled}
+          testID="sign-in-google-button"
+        />
+      ) : null}
       {Platform.OS === 'ios' ? (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}

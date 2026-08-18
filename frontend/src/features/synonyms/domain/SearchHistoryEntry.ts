@@ -1,7 +1,9 @@
 import type { Synonym } from './Synonym';
 import type { GeneratedWord } from './SynonymGeneration';
 
-export type HistoryOutcome = 'generated' | 'cache';
+// search_history.outcome の CHECK 制約と揃える。'failed' 行は一覧では除外するが、
+// getById では取得されうるため型としては表現しておく。
+export type HistoryOutcome = 'generated' | 'cache' | 'failed';
 
 export interface HistoryGeneration {
   readonly id: string;

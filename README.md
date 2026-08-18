@@ -145,8 +145,9 @@ cp .env.example .env
 npm run start
 ```
 
-Google ログインは `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` が未設定の間、ボタンを押すとエラーになります
-(OAuth クライアント発行はオーナー作業。上記「外部サービスの準備」参照)。
+Google ログインは `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` が未設定の間、**ボタン自体を表示しません**
+(押しても必ず失敗するため。OAuth クライアント発行はオーナー作業。上記「外部サービスの準備」参照)。
+iOS でビルドする場合は `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` も必要です。
 Apple ログインはネイティブモジュールを含むため **Expo Go では動作しません**。
 Development Build(`npx expo run:ios` 等)または EAS Build が必要です([ADR-0003](./docs/adr/0003-expo-managed-workflow.md))。
 
@@ -186,7 +187,8 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 | --- | --- |
 | `EXPO_PUBLIC_SUPABASE_URL` | Supabase プロジェクト URL |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Publishable key（旧 anon key）。RLS 前提で公開してよい |
-| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google Sign-In 用の Web クライアント ID。未設定でも起動はできるが Google ログインは失敗する |
+| `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google Sign-In の Web クライアント ID（ID トークンの audience 用）。未設定の間は Google ログインのボタンを表示しない |
+| `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Google Sign-In の iOS クライアント ID。iOS の URL スキーム導出に必要で、Web 用の ID では代用できない |
 
 > ⚠️ Supabase の **secret key（旧 service_role key）と `GEMINI_API_KEY` を
 > `frontend/` 側に置くことは絶対に禁止**です。これらはサーバー側専用です。

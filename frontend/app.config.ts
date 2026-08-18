@@ -1,7 +1,7 @@
 import type { ExpoConfig } from 'expo/config';
 
 // 動的設定(app.json ではなく app.config.ts)にしているのは、Google Sign-In の
-// iOS URL スキーム(GOOGLE_WEB_CLIENT_ID から機械的に導出できる reversed client id)を
+// iOS URL スキーム(iOS クライアント ID から導出する reversed client id)を
 // ビルド時の環境変数から注入する必要があるため。静的な app.json では表現できない。
 // (docs/repository-structure.md)
 
@@ -9,14 +9,22 @@ const IOS_BUNDLE_IDENTIFIER = 'com.openowl.app';
 const ANDROID_PACKAGE = 'com.openowl.app';
 
 // "123-abc.apps.googleusercontent.com" -> "com.googleusercontent.apps.123-abc"
-function toReversedClientId(webClientId: string | undefined): string | undefined {
-  if (!webClientId) return undefined;
-  const [id] = webClientId.split('.apps.googleusercontent.com');
+// 期待する接尾辞を持たない値(単なる ID や誤設定)は、黙って壊れたスキームを作らずに
+// undefined を返す。split()[0] だけで判定すると、接尾辞がなくても入力そのものが
+// 返ってしまい、一見正しい形の誤ったスキームが生成される。
+const GOOGLE_CLIENT_ID_SUFFIX = '.apps.googleusercontent.com';
+
+function toReversedClientId(clientId: string | undefined): string | undefined {
+  if (!clientId || !clientId.endsWith(GOOGLE_CLIENT_ID_SUFFIX)) return undefined;
+  const id = clientId.slice(0, -GOOGLE_CLIENT_ID_SUFFIX.length);
   if (!id) return undefined;
   return `com.googleusercontent.apps.${id}`;
 }
 
-const reversedGoogleClientId = toReversedClientId(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
+// iosUrlScheme は **iOS 種別の OAuth クライアント ID** から導出する必要がある。
+// Web クライアント ID から作ったスキームでは Google 側のリダイレクトが一致せず、
+// iOS のネイティブフローが成立しない(Web 用と iOS 用は別のクライアントとして登録される)。
+const reversedGoogleClientId = toReversedClientId(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
 
 const plugins: ExpoConfig['plugins'] = [
   'expo-router',
@@ -33,7 +41,7 @@ const plugins: ExpoConfig['plugins'] = [
 ];
 
 // Phase 5 のブロッカー: Google Cloud Console での OAuth クライアント発行が未了のうちは
-// EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID が空になる(docs/roadmap.md)。このプラグインは
+// EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID が空になる(docs/roadmap.md)。このプラグインは
 // 空文字列の iosUrlScheme を渡すと prebuild 時にエラーで落ちるため、
 // クライアント ID が判明するまでプラグイン自体を配列に含めない。
 if (reversedGoogleClientId) {

@@ -23,7 +23,12 @@ export function VerifyEmailScreen({ email }: VerifyEmailScreenProps) {
     return () => clearInterval(timer);
   }, [cooldown]);
 
+  // email が渡ってこないケース(直接この画面に来た等)では再送のしようがない。
+  // 空文字で送るとサーバ側の汎用エラーになるだけなので、ボタン自体を無効化する。
+  const canResend = email.length > 0;
+
   const handleResend = () => {
+    if (!canResend) return;
     resend.mutate(email, { onSuccess: () => setCooldown(RESEND_COOLDOWN_SECONDS) });
   };
 
@@ -35,6 +40,13 @@ export function VerifyEmailScreen({ email }: VerifyEmailScreenProps) {
           {email ? `${email} 宛に` : ''}
           確認メールをお送りしました。メール内のリンクからログインを完了してください。
         </Text>
+
+        {!canResend ? (
+          <Banner
+            variant="info"
+            message="再送するには、ログイン画面からもう一度登録操作を行ってください。"
+          />
+        ) : null}
 
         {resend.isError ? (
           <Banner
@@ -51,7 +63,7 @@ export function VerifyEmailScreen({ email }: VerifyEmailScreenProps) {
           variant="secondary"
           onPress={handleResend}
           loading={resend.isPending}
-          disabled={cooldown > 0}
+          disabled={cooldown > 0 || !canResend}
           testID="verify-email-resend-button"
         />
 

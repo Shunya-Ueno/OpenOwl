@@ -9,6 +9,7 @@ import { Button } from '@/shared/ui/Button';
 import { Banner } from '@/shared/ui/Banner';
 import { TextField } from '@/shared/ui/TextField';
 import { colors, spacing, typography } from '@/shared/theme/tokens';
+import { authClient } from '../api/SupabaseAuthClient';
 import { useSignIn } from '../hooks/useSignIn';
 import { useAppleSignIn, useGoogleSignIn } from '../hooks/useSocialSignIn';
 import { SocialSignInButtons } from './SocialSignInButtons';
@@ -112,6 +113,9 @@ export function SignInScreen() {
           googleLoading={googleSignIn.isPending}
           appleLoading={appleSignIn.isPending}
           disabled={isBusy}
+          // OAuth クライアント未発行の間は押しても必ず失敗するため、ボタンを出さない
+          // (docs/roadmap.md の人間側ブロッカー)。
+          showGoogle={authClient.isGoogleSignInAvailable()}
         />
 
         <Link href="/sign-up" style={styles.footerLink}>

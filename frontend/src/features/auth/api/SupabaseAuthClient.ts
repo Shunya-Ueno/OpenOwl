@@ -1,11 +1,20 @@
-import type { Session } from '@supabase/supabase-js';
-import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
+import { FunctionsHttpError, type Session } from '@supabase/supabase-js';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { supabase } from '@/shared/api/supabaseClient';
+import { authCallbackUrl } from '@/shared/api/authRedirect';
 import { translateAuthErrorMessage } from '../domain/AuthErrorTranslator';
 
 export type SignInOutcome = 'signed_in' | 'cancelled';
+
+/** 認証メールのリンク種別。recovery はパスワード再設定、other はメール確認など。 */
+export type AuthCallbackType = 'recovery' | 'other';
+
+export interface AuthCallbackResult {
+  readonly session: Session | null;
+  readonly type: AuthCallbackType;
+}
 
 /**
  * Supabase Auth とネイティブのソーシャルログイン SDK をまとめて扱うクラス。
@@ -21,13 +30,22 @@ export class SupabaseAuthClient {
   configureGoogleSignIn(): void {
     if (this.googleConfigured) return;
     const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+    const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
     if (!webClientId) {
       // Phase 5 の人間側ブロッカー(Google OAuth クライアント未発行)が未解消のうちは
       // 設定をスキップする。ボタンを押したときにのみエラーになる(起動は妨げない)。
       return;
     }
-    GoogleSignin.configure({ webClientId });
+    // webClientId は Supabase に渡す ID トークンの audience を決めるため必須。
+    // iosClientId は iOS のネイティブフローに必要で、Web 用の ID では代用できない
+    // (種別が違うクライアントとして Google 側に登録されるため)。
+    GoogleSignin.configure({ webClientId, ...(iosClientId ? { iosClientId } : {}) });
     this.googleConfigured = true;
+  }
+
+  /** Google ログインが利用可能か(必要なクライアントIDが設定されているか)。 */
+  isGoogleSignInAvailable(): boolean {
+    return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID);
   }
 
   async getSession(): Promise<Session | null> {
@@ -50,20 +68,78 @@ export class SupabaseAuthClient {
   }
 
   async signUpWithEmail(email: string, password: string): Promise<void> {
-    const { error } = await supabase.auth.signUp({ email, password });
+    // emailRedirectTo を渡さないと確認メールのリンクが Supabase の site_url
+    // (ローカルでは http://127.0.0.1:3000)に向き、端末から登録を完了できない。
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: authCallbackUrl() },
+    });
     if (error) throw new Error(translateAuthErrorMessage(error));
   }
 
   async resendConfirmationEmail(email: string): Promise<void> {
-    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: authCallbackUrl() },
+    });
     if (error) throw new Error(translateAuthErrorMessage(error));
   }
 
   async resetPasswordForEmail(email: string): Promise<void> {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'openowl://auth-callback',
+      redirectTo: authCallbackUrl(),
     });
     if (error) throw new Error(translateAuthErrorMessage(error));
+  }
+
+  /** パスワード再設定リンクから復帰したあと、新しいパスワードを設定する。 */
+  async updatePassword(newPassword: string): Promise<void> {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw new Error(translateAuthErrorMessage(error));
+  }
+
+  /**
+   * 認証メールのリンク(ディープリンク)からセッションを確立する。
+   *
+   * Supabase は PKCE の場合 `?code=`、implicit の場合 `#access_token=` を付けて戻す。
+   * どちらで戻るかはプロジェクト設定に依存するため両方を扱う。
+   * `type` はリンクの種類(recovery=パスワード再設定 / signup=メール確認)で、
+   * 遷移先の判断に使う。
+   */
+  async establishSessionFromUrl(url: string): Promise<AuthCallbackResult> {
+    const parsed = new URL(url);
+    const fragment = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+    const linkType = parsed.searchParams.get('type') ?? fragment.get('type');
+    const type: AuthCallbackType = linkType === 'recovery' ? 'recovery' : 'other';
+
+    const errorDescription =
+      parsed.searchParams.get('error_description') ?? fragment.get('error_description');
+    if (errorDescription) {
+      throw new Error('リンクの有効期限が切れています。もう一度お試しください。');
+    }
+
+    const code = parsed.searchParams.get('code');
+    if (code) {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) throw new Error(translateAuthErrorMessage(error));
+      return { session: data.session, type };
+    }
+
+    // implicit フロー: フラグメントにトークンが入る。
+    const accessToken = fragment.get('access_token');
+    const refreshToken = fragment.get('refresh_token');
+    if (accessToken && refreshToken) {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+      if (error) throw new Error(translateAuthErrorMessage(error));
+      return { session: data.session, type };
+    }
+
+    return { session: null, type };
   }
 
   async signOut(): Promise<void> {
@@ -80,29 +156,38 @@ export class SupabaseAuthClient {
    */
   async deleteAccount(): Promise<void> {
     const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
-    if (error) {
-      throw new Error('アカウントの削除に失敗しました。しばらくしてからもう一度お試しください。');
+    if (!error) return;
+
+    // Function 自体が存在しない場合は「時間をおけば直る」類の障害ではないため、
+    // 再試行を促す文言を出さない(誤解を招くため)。
+    if (error instanceof FunctionsHttpError && error.context.status === 404) {
+      throw new Error('アカウント削除機能は現在準備中です。お手数ですがサポートまでご連絡ください。');
     }
+    throw new Error('アカウントの削除に失敗しました。しばらくしてからもう一度お試しください。');
   }
 
   async signInWithGoogle(): Promise<SignInOutcome> {
-    this.configureGoogleSignIn();
-    try {
-      await GoogleSignin.hasPlayServices();
-      const response = await GoogleSignin.signIn();
-      const idToken = response.data?.idToken;
-      if (!idToken) {
-        throw new Error('Google からトークンを取得できませんでした。もう一度お試しください。');
-      }
-      const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
-      if (error) throw new Error(translateAuthErrorMessage(error));
-      return 'signed_in';
-    } catch (caught) {
-      if (isErrorWithCode(caught) && caught.code === statusCodes.SIGN_IN_CANCELLED) {
-        return 'cancelled';
-      }
-      throw caught;
+    if (!this.isGoogleSignInAvailable()) {
+      throw new Error('Google ログインは現在ご利用いただけません。');
     }
+    this.configureGoogleSignIn();
+    await GoogleSignin.hasPlayServices();
+
+    // このライブラリ(v16)ではキャンセルは例外ではなく戻り値で表現される
+    // ({ type: 'cancelled' })。例外として扱うとユーザーが自分で閉じただけの操作に
+    // エラーバナーが出てしまう。
+    const response = await GoogleSignin.signIn();
+    if (response.type === 'cancelled') {
+      return 'cancelled';
+    }
+
+    const idToken = response.data.idToken;
+    if (!idToken) {
+      throw new Error('Google からトークンを取得できませんでした。もう一度お試しください。');
+    }
+    const { error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: idToken });
+    if (error) throw new Error(translateAuthErrorMessage(error));
+    return 'signed_in';
   }
 
   async signInWithApple(): Promise<SignInOutcome> {

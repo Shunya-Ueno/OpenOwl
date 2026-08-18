@@ -27,7 +27,6 @@ export function HomeScreen() {
     control,
     handleSubmit,
     formState: { errors },
-    getValues,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { word: '' },
@@ -50,12 +49,10 @@ export function HomeScreen() {
     mutation.mutate(values.word);
   });
 
-  const retry = () => {
-    const current = getValues('word');
-    if (!current) return;
-    setShowSlowHint(false);
-    mutation.mutate(current);
-  };
+  // 再試行も必ず handleSubmit(zodResolver)を通す。getValues + mutate で直接送ると、
+  // エラー表示後に入力を不正な値へ編集された場合に、そのまま課金対象のエンドポイントへ
+  // 送ってしまう(インラインのエラー表示も出ない)。
+  const retry = onSubmit;
 
   const errorMessage = describeError(mutation.error);
 
@@ -87,7 +84,9 @@ export function HomeScreen() {
           testID="home-generate-button"
         />
 
-        {showSlowHint ? <Text style={styles.hint}>生成中です…</Text> : null}
+        {mutation.isPending && showSlowHint ? (
+          <Text style={styles.hint}>生成中です…</Text>
+        ) : null}
 
         {errorMessage ? (
           <>

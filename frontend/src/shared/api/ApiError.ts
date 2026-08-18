@@ -41,13 +41,44 @@ export class ApiError extends Error {
 
   /** fetch 自体が失敗した場合(オフライン・DNS 到達不可など)。 */
   static fromNetworkFailure(cause: unknown): ApiError {
-    const error = new ApiError(
-      'オフラインです。接続を確認してください。',
-      'offline',
-      true,
-      undefined,
-      undefined,
+    return ApiError.withCause(
+      new ApiError('オフラインです。接続を確認してください。', 'offline', true, undefined, undefined),
+      cause,
     );
+  }
+
+  /**
+   * サーバ側には到達したが、リレー/起動に失敗した場合。
+   * 接続自体はできているため「オフライン」とは区別する。
+   */
+  static fromServiceUnavailable(cause: unknown): ApiError {
+    return ApiError.withCause(
+      new ApiError(
+        'ただいま混み合っています。少し時間をおいてお試しください。',
+        'llm_unavailable',
+        true,
+        undefined,
+        undefined,
+      ),
+      cause,
+    );
+  }
+
+  /** 上記のいずれにも当てはまらない想定外の失敗。 */
+  static fromUnexpected(cause: unknown): ApiError {
+    return ApiError.withCause(
+      new ApiError(
+        'エラーが発生しました。もう一度お試しください。',
+        'internal_error',
+        true,
+        undefined,
+        undefined,
+      ),
+      cause,
+    );
+  }
+
+  private static withCause(error: ApiError, cause: unknown): ApiError {
     error.cause = cause;
     return error;
   }

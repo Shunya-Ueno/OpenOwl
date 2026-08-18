@@ -53,6 +53,13 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
+      {/*
+        認証メールのリンク着地点と、新しいパスワードの入力画面。
+        リンク処理でセッションが確立すると「認証済み」になるため (auth) 配下には置けない
+        (ガードで (app) へ飛ばされ、パスワードを入力できなくなる)。
+      */}
+      <Stack.Screen name="auth-callback" />
+      <Stack.Screen name="reset-password" />
       <Stack.Screen name="+not-found" />
     </Stack>
   );
