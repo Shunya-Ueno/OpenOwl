@@ -33,7 +33,9 @@ export abstract class AppError extends Error {
   abstract readonly retryable: boolean;
   abstract readonly userMessage: string;
 
-  constructor(message: string, readonly cause?: unknown) {
+  // `cause` は ES2022 以降の Error が持つメンバーなので、override を明示する
+  // (Deno は noImplicitOverride が既定で有効なため、付けないと TS4115 になる)。
+  constructor(message: string, override readonly cause?: unknown) {
     super(message);
     this.name = new.target.name;
   }
