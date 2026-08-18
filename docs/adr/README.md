@@ -18,6 +18,9 @@
 | [0005](./0005-relational-synonyms-over-jsonb.md) | 類義語をリレーショナルに保存する（jsonb 単一カラムにしない） | Accepted |
 | [0006](./0006-no-mocks-testing-policy.md) | モックを使わないテスト方針とその運用 | Accepted |
 | [0007](./0007-shared-synonym-cache.md) | 生成結果をユーザー横断でキャッシュする | Accepted |
+| [0008](./0008-expo-router.md) | ルーティングに Expo Router を採用する | Accepted |
+| [0009](./0009-feature-based-frontend-structure.md) | フロントエンドを feature-based 構成にする | Accepted |
+| [0010](./0010-frontend-state-management.md) | 状態管理はグローバルストアを導入せず、性質ごとに道具を分ける | Accepted |
 
 ## テンプレート
 

@@ -16,7 +16,9 @@ OpenOwl（外国語学習アプリ）の設計ドキュメント一式です。
 | [`security.md`](./security.md) | RLS ポリシー、APIキー管理、認証フロー、脅威と対策 | 全員 | ✅ |
 | [`error-handling.md`](./error-handling.md) | エラー分類、リトライ方針、フォールバックUX | 全員 | ✅ |
 | [`adr/`](./adr/) | Architecture Decision Record（意思決定の記録） | 全員 | ✅ |
-| `frontend/` | （将来）画面遷移図、状態管理方針、ディレクトリ構成 | フロントエンド | ⬜ Phase 4 |
+| [`frontend/screens.md`](./frontend/screens.md) | 画面一覧、画面遷移図、各画面の状態と操作 | フロントエンド | ✅ |
+| [`frontend/directory-structure.md`](./frontend/directory-structure.md) | `frontend/` のディレクトリ構成と依存の向き | フロントエンド | ✅ |
+| [`frontend/state-management.md`](./frontend/state-management.md) | 認証状態・サーバ状態・フォーム状態の扱い | フロントエンド | ✅ |
 | `testing/` | （将来）E2E戦略、CI パイプライン、テスト用環境の扱い | 全員 | ⬜ Phase 6 |
 
 ## この構成にした理由
@@ -31,11 +33,17 @@ OpenOwl（外国語学習アプリ）の設計ドキュメント一式です。
    読み手が「今どうなっているか」を読み取れなくなるためです。
 
 3. **将来フェーズのディレクトリを先に確保しない**
-   `frontend/`・`testing/` は Phase 4 以降で実際に書く段階になってから作成します。
+   `testing/` は Phase 6 で実際に書く段階になってから作成します。
    空ディレクトリを先に切っても Git では追跡されず、`.gitkeep` は雑音になるためです。
    ただし「どこに書くか」だけはこの表で先に決めておきます。
 
-4. **API仕様を単一の正とする**
+4. **フロントエンドのドキュメントだけサブディレクトリに分けている理由**
+   画面・ディレクトリ構成・状態管理は「フロントエンド担当が続けて読む3点セット」であり、
+   バックエンドの担当者が読む必要がありません。トップレベルに3ファイル増えると
+   索引の見通しが落ちるため、`frontend/` にまとめました。
+   同じ理由で Phase 6 のテスト関連は `testing/` にまとめます。
+
+5. **API仕様を単一の正とする**
    MVP 時点では型定義を `frontend`/`backend` それぞれで持つため（[ADR-0002](./adr/0002-shared-types-deferred.md)）、
    両者の契約は [`api-spec.md`](./api-spec.md) が唯一の正となります。ここがズレると本番で壊れます。
 

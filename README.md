@@ -2,12 +2,13 @@
 
 外国語学習モバイルアプリ。英単語を入力すると、LLM がニュアンス付きの類義語を提示します。
 
-> **現在のステータス: Phase 3 — Supabase テストプロジェクトへ反映済み / Gemini API 未接続**
+> **現在のステータス: Phase 3 — Supabase テストプロジェクトへ反映済み / Gemini API 未接続、Phase 4 — フロントエンド設計完了**
 > `backend/` のマイグレーションと `generate-synonyms` Edge Function を、テスト用 Supabase
 > プロジェクト `OpenOwl-feature` に実際に適用・デプロイしました（Advisor 指摘は解消済み）。
 > 残るのは `GEMINI_API_KEY` の登録（オーナー作業）と、それを使った動作確認・RLS 実クエリ検証です。
 > 詳細は [`docs/roadmap.md`](./docs/roadmap.md#人間の作業が必要なブロッカー) を参照してください。
-> フロントエンド（Phase 5）は未着手です。
+> フロントエンドは**設計（Phase 4）まで完了**し、実装（Phase 5）は未着手です。
+> 画面構成・ディレクトリ構成・状態管理方針は [`docs/frontend/`](./docs/frontend/) を参照してください。
 
 ## 概要
 
@@ -39,6 +40,7 @@ OpenOwl/
 │   ├── backend-design.md
 │   ├── security.md
 │   ├── error-handling.md
+│   ├── frontend/          # 画面遷移図、ディレクトリ構成、状態管理方針
 │   └── adr/               # 設計判断の記録
 ├── backend/               # ✅ Phase 3 で実装済み
 │   ├── package.json
@@ -117,10 +119,12 @@ npm run functions:serve
 `POST http://127.0.0.1:54321/functions/v1/generate-synonyms` を呼び出せます
 （詳細は [`docs/api-spec.md`](./docs/api-spec.md)）。
 
-> **未検証の注意**: `backend/` のコードは [`docs/backend-design.md`](./docs/backend-design.md) に基づいて
-> 実装されていますが、Supabase CLI / Deno が使える環境でまだ実行検証していません。
-> 上記コマンドを実行し、[RLS の検証6項目](./docs/security.md#rls-の検証phase-3-の完了条件)と
-> [Phase 3 の完了条件](./docs/backend-design.md#実装フェーズphase-3の完了条件)を満たすことを確認してください。
+> **検証状況**: マイグレーションと Edge Function は**テスト用 Supabase プロジェクトへ適用・デプロイ済み**です。
+> 一方で、`GEMINI_API_KEY` が未登録のため**実際の Gemini API を使った動作確認は未実施**であり、
+> [RLS の検証6項目](./docs/security.md#rls-の検証phase-3-の完了条件)と
+> `deno lint` / `deno check` も未実行です。
+> 残りの[Phase 3 の完了条件](./docs/backend-design.md#実装フェーズphase-3の完了条件)は
+> [`docs/roadmap.md`](./docs/roadmap.md) の注1にまとめてあります。
 
 ## 環境変数
 
@@ -160,7 +164,7 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 ## 開発コマンド
 
 `⬜` は該当フェーズで実装され次第、有効になります。✅ のコマンドは実装済みですが、
-この開発環境では実行検証していません（上記の「未検証の注意」を参照）。
+`lint` / `typecheck` はこの開発環境に Deno がないため未実行です（上記の「検証状況」を参照）。
 
 | コマンド | 内容 | 状態 |
 | --- | --- | --- |
