@@ -44,7 +44,9 @@ export function HistoryDetailScreen({ id }: HistoryDetailScreenProps) {
 
   return (
     <Screen>
-      <Text style={styles.title}>{entry.word.text}</Text>
+      <Text style={styles.title} testID="history-detail-word">
+        {entry.word.text}
+      </Text>
       {entry.generation ? (
         <SynonymList synonyms={entry.generation.synonyms} />
       ) : (

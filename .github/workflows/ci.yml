@@ -1,0 +1,62 @@
+# 静的検査。すべての push と PR で走る。
+#
+# **シークレットを一切参照しない**ため、フォークからの PR でも動く。
+# 実サービスに接続するテストは integration.yml / e2e.yml に分けている
+# (docs/testing/ci-pipeline.md)。
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+# 同じブランチへの連続プッシュでは古い実行を打ち切る。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend (deno lint + check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Lint
+        working-directory: backend
+        run: deno lint --config supabase/functions/deno.json supabase/functions
+
+      - name: Typecheck (Edge Functions)
+        working-directory: backend
+        run: deno check --config supabase/functions/deno.json supabase/functions/generate-synonyms/index.ts
+
+      # テストコード自体も型が壊れていないことを確認する。
+      # テストは実行しない(シークレットが必要なため integration.yml の担当)。
+      - name: Typecheck (tests)
+        working-directory: backend
+        run: deno check --config supabase/functions/deno.json tests/*.test.ts
+
+  frontend:
+    name: frontend (eslint + tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # npm workspaces のため、ルートで入れると frontend の依存も入る。
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint:frontend
+
+      - name: Typecheck
+        run: npm run typecheck:frontend

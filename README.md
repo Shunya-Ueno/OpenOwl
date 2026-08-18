@@ -2,7 +2,7 @@
 
 外国語学習モバイルアプリ。英単語を入力すると、LLM がニュアンス付きの類義語を提示します。
 
-> **現在のステータス: バックエンド反映済み（Phase 3、Gemini API 未接続） / フロントエンド実装済み（Phase 5、実機・シミュレータ未検証）**
+> **現在のステータス: Phase 0〜6 の実装が一通り完了。ただし実サービスに対する検証が残っています**
 > `backend/` のマイグレーションと `generate-synonyms` Edge Function を、テスト用 Supabase
 > プロジェクト `OpenOwl-feature` に実際に適用・デプロイしました（Advisor 指摘は解消済み）。
 > 残るのは `GEMINI_API_KEY` の登録（オーナー作業）と、それを使った動作確認・RLS 実クエリ検証です。
@@ -10,6 +10,8 @@
 > `npm run typecheck` / `npm run lint` は通っています。ただしこの開発環境には
 > シミュレータ・実機がなく、**実際に起動しての動作確認は未実施**です。
 > Google/Apple ログインは OAuth クライアント発行（オーナー作業）が済むまで動作しません。
+> テスト（`backend/tests/`）と CI（`.github/workflows/`）も実装済みですが、
+> **一度も実行できていません**（この開発環境に Deno・Supabase CLI・エミュレータがないため）。
 > 詳細は [`docs/roadmap.md`](./docs/roadmap.md#人間の作業が必要なブロッカー) を参照してください。
 
 ## 概要
@@ -43,6 +45,7 @@ OpenOwl/
 │   ├── security.md
 │   ├── error-handling.md
 │   ├── frontend/          # 画面遷移図、ディレクトリ構成、状態管理方針
+│   ├── testing/           # E2E 戦略、CI パイプライン
 │   └── adr/               # 設計判断の記録
 ├── backend/               # ✅ Phase 3 で実装済み
 │   ├── package.json
@@ -51,10 +54,11 @@ OpenOwl/
 │       ├── config.toml
 │       ├── seed.sql
 │       ├── migrations/    # SQL マイグレーション(DDL + RLS + RPC)
-│       └── functions/
-│           ├── deno.json
-│           ├── _shared/   # domain / application / infrastructure / http
-│           └── generate-synonyms/
+│       ├── functions/
+│       │   ├── deno.json
+│       │   ├── _shared/   # domain / application / infrastructure / http
+│       │   └── generate-synonyms/
+│       └── tests/         # 実 Supabase / 実 Gemini に対する統合テスト
 ├── frontend/              # ✅ Phase 5 で実装済み
 │   ├── package.json
 │   ├── app.config.ts      # Expo 動的設定
@@ -64,8 +68,9 @@ OpenOwl/
 │   │   ├── features/      # auth / synonyms(各 domain/api/hooks/ui)
 │   │   ├── shared/        # 2つ以上の feature から使うものだけ
 │   │   └── types/         # DB 型の生成物
+│   ├── e2e/               # Maestro のフロー
 │   └── assets/
-└── .github/workflows/     # ⬜ Phase 6 で作成（CI）
+└── .github/workflows/     # ci.yml / integration.yml / e2e.yml
 ```
 
 構成の根拠は [`docs/repository-structure.md`](./docs/repository-structure.md) を参照。
@@ -213,7 +218,9 @@ Expo の `EXPO_PUBLIC_` 接頭辞付き変数は**バンドルに埋め込まれ
 | `npm run ios` / `npm run android` | 各プラットフォームでの起動(frontend) | ✅ 実装済み(実機・シミュレータでの検証は未実施) |
 | `npm run lint` | `deno lint`(backend) + `eslint .`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
 | `npm run typecheck` | `deno check`(backend) + `tsc --noEmit`(frontend) | ✅ 実装済み(frontend は検証済み、backend は未検証) |
-| `npm run test:e2e` | E2E テスト（実 Supabase / 実 Gemini に接続） | ⬜ Phase 6 |
+| `npm run test:integration` | バックエンド統合テスト（実 Supabase / 実 Gemini。`backend/.env.test` が必要） | 🟡 実装済み・未実行 |
+| `npm run e2e` | Maestro による E2E（Development Build とエミュレータが必要） | 🟡 実装済み・未実行 |
+| `npm run e2e:seed` | E2E 用のテストユーザーを確認済み状態で作成 | 🟡 実装済み・未実行 |
 
 ## 開発方針（要点）
 

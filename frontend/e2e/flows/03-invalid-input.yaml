@@ -1,0 +1,21 @@
+# 不正な入力が「送信前に」弾かれることを確認する。
+#
+# ここが壊れると、課金対象のエンドポイントに無駄なリクエストが飛ぶ。
+# インラインのエラーが出て、結果リストが出ないことをもって確認する。
+appId: ${APP_ID}
+---
+- launchApp
+
+- tapOn:
+    id: 'home-word-input'
+- eraseText
+- inputText: '123'
+- hideKeyboard
+
+- tapOn:
+    id: 'home-generate-button'
+
+# クライアント側の検証で止まるため、サーバのエラーバナーは出ない。
+- assertNotVisible:
+    id: 'home-error-banner'
+- assertVisible: '英字で入力してください.*'

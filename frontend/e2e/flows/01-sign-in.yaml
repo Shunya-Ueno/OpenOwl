@@ -1,0 +1,32 @@
+# メール+パスワードでログインし、ホーム(類義語生成)に到達することを確認する。
+#
+# Google / Apple ログインは対象外(外部の認証画面に依存し壊れやすいため。
+# docs/adr/0011-maestro-for-e2e.md)。
+appId: ${APP_ID}
+---
+- clearState
+- launchApp
+
+- assertVisible:
+    id: 'sign-in-email-input'
+
+- tapOn:
+    id: 'sign-in-email-input'
+- inputText: ${E2E_USER_EMAIL}
+
+- tapOn:
+    id: 'sign-in-password-input'
+- inputText: ${E2E_USER_PASSWORD}
+- hideKeyboard
+
+- tapOn:
+    id: 'sign-in-submit-button'
+
+# 認証と初回のセッション確立を待つ。
+- extendedWaitUntil:
+    visible:
+      id: 'home-word-input'
+    timeout: 20000
+
+- assertNotVisible:
+    id: 'sign-in-error-banner'

@@ -1,0 +1,32 @@
+# 単語を入力して生成し、類義語リストが表示されることを確認する。
+#
+# このフローだけが LLM を呼びうる(同じ単語のキャッシュが温まっていれば呼ばない)。
+# テスト用の単語は固定し、無駄なトークン消費を避ける(docs/testing/e2e-strategy.md)。
+appId: ${APP_ID}
+---
+- launchApp
+
+- assertVisible:
+    id: 'home-word-input'
+
+- tapOn:
+    id: 'home-word-input'
+- inputText: 'happy'
+- hideKeyboard
+
+- tapOn:
+    id: 'home-generate-button'
+
+# LLM の応答は数秒かかる。タイムアウトは Edge Function 側の
+# GEMINI_TIMEOUT_MS(既定10秒)+ 往復分の余裕をとる。
+- extendedWaitUntil:
+    visible:
+      id: 'synonym-list'
+    timeout: 30000
+
+- assertVisible:
+    id: 'synonym-card-1'
+- assertVisible:
+    id: 'home-usage-indicator'
+- assertNotVisible:
+    id: 'home-error-banner'

@@ -28,9 +28,9 @@ OpenOwl/
 │       │   │   └── config/
 │       │   └── generate-synonyms/
 │       │       └── index.ts    # 合成ルート（依存を組み立てて serve）
-│       └── tests/              # ⬜ Phase 6: 実 Supabase に対する統合テスト
+│       └── tests/              # ✅ 実 Supabase / 実 Gemini に対する統合テスト
 │
-├── frontend/                   # ⬜ Phase 5 で作成（構成は Phase 4 で確定）
+├── frontend/                   # ✅ Phase 5 で実装済み
 │   ├── package.json
 │   ├── app.config.ts           # Expo 設定
 │   ├── .env.example
@@ -39,9 +39,9 @@ OpenOwl/
 │   │   ├── features/           # 機能単位（auth / synonyms）。内部を domain/api/hooks/ui で分割
 │   │   ├── shared/             # 2つ以上の feature から使うものだけ（api / ui / theme / lib）
 │   │   └── types/              # DB 型の生成物
-│   └── e2e/                    # ⬜ Phase 6
+│   └── e2e/                    # ✅ Maestro のフロー
 │
-└── .github/workflows/          # ⬜ Phase 6
+└── .github/workflows/          # ✅ ci / integration / e2e
 ```
 
 `frontend/src/` の内訳は Phase 4 で確定しました。詳細は
@@ -117,8 +117,8 @@ MVP で共有したい型は「1エンドポイントのリクエスト/レス�
 | --- | --- | --- |
 | ESLint + Prettier | Lint / フォーマット | フロントは `eslint-config-expo`、バックエンドは `deno lint` / `deno fmt` |
 | TypeScript `strict` | 型チェック | `any` 禁止 |
-| GitHub Actions | CI | Phase 6 |
-| Maestro もしくは Detox | E2E | Phase 6 で選定（Expo との相性と CI 実行コストで判断） |
+| GitHub Actions | CI | 3本に分割（[`testing/ci-pipeline.md`](./testing/ci-pipeline.md)） |
+| **Maestro** | E2E | [ADR-0011](./adr/0011-maestro-for-e2e.md) で確定。アプリのコードを変えずに書ける |
 
 ## 命名・配置の規約
 

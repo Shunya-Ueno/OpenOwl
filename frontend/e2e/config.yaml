@@ -1,0 +1,11 @@
+# Maestro のワークスペース設定。
+# フローは flows/ に置き、番号順に実行されることを前提に書く
+# (01 でサインインし、以降はログイン済みの状態を引き継ぐ)。
+flows:
+  - flows/*.yaml
+
+# 全フローで共有する変数。実値は環境変数から渡す:
+#   E2E_USER_EMAIL / E2E_USER_PASSWORD
+# (ユーザーは backend の `npm run e2e:seed` で確認済み状態として事前作成する)
+env:
+  APP_ID: com.openowl.app

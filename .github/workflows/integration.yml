@@ -1,0 +1,44 @@
+# バックエンド統合テスト。**テスト用 Supabase と実 Gemini API に接続する**。
+#
+# 契機を絞っているのは、実 API に課金が発生すること(docs/adr/0006)と、
+# フォークからの PR にはシークレットが渡らず必ず失敗することの2点による
+# (docs/testing/ci-pipeline.md)。
+name: Integration tests
+
+on:
+  # `run-integration` ラベルの付いた PR でのみ自動実行する。
+  pull_request:
+    types: [labeled, synchronize]
+  workflow_dispatch:
+
+# テスト用プロジェクトを共有しているため、同時に走らせない。
+# 並行するとレート制限やテストデータの取り合いで不安定になる。
+concurrency:
+  group: integration-tests
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: backend integration (real Supabase + Gemini)
+    runs-on: ubuntu-latest
+    # ラベル契機のときだけ走らせる。手動実行は常に許可。
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'run-integration')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Run integration tests
+        working-directory: backend
+        env:
+          # GEMINI_API_KEY はここに登録しない。Edge Function が Supabase 側の
+          # シークレットとして保持しており、CI は Function を呼ぶだけでよい
+          # (CI に置かない鍵は漏れない。docs/testing/ci-pipeline.md)。
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_SUPABASE_SECRET_KEY: ${{ secrets.TEST_SUPABASE_SECRET_KEY }}
+        run: npm run test:integration:ci

@@ -70,8 +70,12 @@ export function HistoryListScreen() {
         data={entries}
         keyExtractor={(item) => item.id}
         contentContainerStyle={entries.length === 0 ? styles.emptyContainer : styles.listContainer}
-        renderItem={({ item }) => (
-          <HistoryListItem entry={item} onPress={() => router.push(`/history/${item.id}`)} />
+        renderItem={({ item, index }) => (
+          <HistoryListItem
+            entry={item}
+            index={index}
+            onPress={() => router.push(`/history/${item.id}`)}
+          />
         )}
         onEndReachedThreshold={0.5}
         onEndReached={() => {

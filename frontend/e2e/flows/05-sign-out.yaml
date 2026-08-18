@@ -1,0 +1,17 @@
+# サインアウトするとログイン画面へ戻ることを確認する。
+appId: ${APP_ID}
+---
+- launchApp
+
+- tapOn: 'アカウント'
+
+- assertVisible:
+    id: 'account-email'
+
+- tapOn:
+    id: 'account-sign-out-button'
+
+- extendedWaitUntil:
+    visible:
+      id: 'sign-in-email-input'
+    timeout: 15000

@@ -38,7 +38,10 @@
     "web": "expo start --web",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "db:types": "cd ../backend && supabase gen types typescript --local > ../frontend/src/types/database.types.ts"
+    "db:types": "cd ../backend && supabase gen types typescript --local > ../frontend/src/types/database.types.ts",
+    "e2e": "maestro test e2e/flows",
+    "e2e:android": "maestro --platform android test e2e/flows",
+    "prebuild:android": "expo prebuild --platform android --no-install"
   },
   "private": true
 }

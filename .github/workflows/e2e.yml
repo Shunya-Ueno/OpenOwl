@@ -1,0 +1,98 @@
+# Maestro による E2E。Android エミュレータ上でアプリを実際に操作する。
+#
+# 毎プッシュでは回さない: エミュレータ起動とビルドで十数分かかり、
+# 実 API への課金も伴うため(docs/testing/ci-pipeline.md)。
+# iOS は macOS ランナーの課金係数に見合わないため CI では扱わず、
+# 手元の Simulator / 実機での確認に委ねる(docs/adr/0011)。
+name: E2E (Android)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 毎週月曜 03:00 UTC(日本時間 12:00)。回帰の検知が目的で、リリース判定には使わない。
+    - cron: '0 3 * * 1'
+
+concurrency:
+  group: e2e-android
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Maestro on Android emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      # E2E 用ユーザーを「確認済み」の状態で用意する。
+      # サインアップ自体は E2E の対象外(メール確認の受信箱操作が必要なため)。
+      - name: Seed E2E user
+        working-directory: backend
+        env:
+          TEST_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          TEST_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+          TEST_SUPABASE_SECRET_KEY: ${{ secrets.TEST_SUPABASE_SECRET_KEY }}
+          E2E_USER_EMAIL: ${{ vars.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: npm run e2e:seed:ci
+
+      - name: Generate native project
+        working-directory: frontend
+        env:
+          # アプリが接続するのは**テスト用**プロジェクト。
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build debug APK
+        working-directory: frontend/android
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run Maestro flows
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          E2E_USER_EMAIL: ${{ vars.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r frontend/android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test frontend/e2e/flows
+
+      # 失敗時の調査用。Maestro はスクリーンショットと階層ダンプを残す。
+      - name: Upload Maestro artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-debug-output
+          path: ~/.maestro/tests/**
+          retention-days: 7

@@ -21,6 +21,9 @@
     "lint:frontend": "npm run lint --workspace=frontend",
     "typecheck": "npm run typecheck:backend && npm run typecheck:frontend",
     "typecheck:backend": "cd backend && npm run typecheck",
-    "typecheck:frontend": "npm run typecheck --workspace=frontend"
+    "typecheck:frontend": "npm run typecheck --workspace=frontend",
+    "test:integration": "cd backend && npm run test:integration",
+    "e2e": "npm run e2e --workspace=frontend",
+    "e2e:seed": "cd backend && npm run e2e:seed"
   }
 }

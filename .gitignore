@@ -1,7 +1,11 @@
 # 環境変数(秘密情報)
+# .env* を広く塞いだうえで、プレースホルダのみの .env*.example だけを追跡する。
+# backend/.env.test にはテスト用プロジェクトの secret key が入るため、
+# 個別に列挙する方式だと追加漏れがそのまま漏洩になる。
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Node
 node_modules/

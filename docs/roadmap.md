@@ -36,7 +36,7 @@ App Store 掲載を目標とした外国語学習アプリ。
 | 3 | バックエンド実装（マイグレーション、Edge Functions） | Sonnet（実装） | 🟡 Supabase プロジェクトへ適用・デプロイ済み / Gemini API 未接続(注1) |
 | 4 | フロントエンド設計（画面構成、状態管理、ディレクトリ構造） | Opus / Fable（設計） | ✅ 完了 |
 | 5 | フロントエンド実装 | Sonnet（実装） | 🟡 コード実装済み / 実機・シミュレータでの検証は未実施(注2) |
-| 6 | E2Eテスト・CI 設定 | Sonnet（実装） | ⬜ 未着手 |
+| 6 | E2Eテスト・CI 設定 | Sonnet（実装） | 🟡 実装済み / 一度も実行できていない(注3) |
 
 **Phase 2 完了時点でいったん停止し、人間のレビューを受ける。**
 
@@ -90,6 +90,32 @@ App Store 掲載を目標とした外国語学習アプリ。
 >
 > 実機・シミュレータでの確認と、上記の差分に対する対応方針の判断をお願いします。
 
+> **注3（Phase 6 の状態について）**: 統合テスト・E2E フロー・CI ワークフローを実装しました
+> （[`testing/e2e-strategy.md`](./testing/e2e-strategy.md) / [`testing/ci-pipeline.md`](./testing/ci-pipeline.md)）。
+>
+> **実施済み**:
+> - `backend/tests/`: RLS 検証7本（[`security.md`](./security.md#rls-の検証phase-3-の完了条件) の6項目 + 許可側の確認）と
+>   `generate-synonyms` の契約テスト10本。LLM を実際に呼ぶのは成功パスの1本のみ
+> - `frontend/e2e/`: Maestro のフロー5本（サインイン / 生成 / 不正入力 / 履歴 / サインアウト）
+> - `.github/workflows/`: `ci.yml`（シークレット不要・毎回）、`integration.yml`（ラベル/手動）、
+>   `e2e.yml`（手動/週次）の3本に分割
+> - YAML の構文検証、フロントエンドの `tsc` / `eslint` は実行して確認
+>
+> **未実施（重要）**:
+> - **テストを一度も実行していません。** この作業環境に Deno・Supabase CLI・
+>   Android エミュレータのいずれもなく、`deno check` すら通せていません。
+>   構文と参照は静的に確認しましたが、**動作は未検証**です
+> - CI ワークフローも GitHub 上で一度も走らせていません
+>
+> **オーナー作業（これがないと Phase 6 は動きません）**:
+> - GitHub Secrets に `TEST_SUPABASE_URL` / `TEST_SUPABASE_PUBLISHABLE_KEY` /
+>   `TEST_SUPABASE_SECRET_KEY` / `E2E_USER_PASSWORD` を登録
+> - GitHub Variables に `E2E_USER_EMAIL` を登録
+> - テスト用 Supabase プロジェクトに `GEMINI_API_KEY` を登録（Phase 3 から続くブロッカー。
+>   これがないと生成の成功パスのテストは失敗します）
+>
+> まずローカルで `cd backend && npm run test:integration` を通してから CI に載せてください。
+
 ### モデル使い分けの原則
 
 - **設計・コードレビュー・リファクタリング**: Opus または Fable
@@ -111,6 +137,7 @@ Phase 3 に入る前に完了している必要がある。
 | 3 | Google Cloud Console で OAuth クライアント ID 発行（iOS / Android / Web） | Phase 5 | Google ログイン用 |
 | 4 | Apple Developer Program 加入（年額 $99）と Sign in with Apple の設定 | Phase 5 | App Store 掲載と Apple ログインに必須 |
 | 5 | Supabase ダッシュボードでの各 Provider 有効化とシークレット登録 | Phase 3 / 5 | キーは AI に渡さず、オーナーが直接登録する |
+| 6 | GitHub Secrets の登録（`TEST_SUPABASE_URL` / `TEST_SUPABASE_PUBLISHABLE_KEY` / `TEST_SUPABASE_SECRET_KEY` / `E2E_USER_PASSWORD`）と Variables（`E2E_USER_EMAIL`） | Phase 6 | CI が動く前提。**本番プロジェクトのキーは登録しない**（[`testing/ci-pipeline.md`](./testing/ci-pipeline.md)） |
 
 課金が発生する契約（4 および Supabase / Gemini の有料プラン移行）は、
 **必ずオーナーの判断を仰いでから**進める。

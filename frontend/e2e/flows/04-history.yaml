@@ -1,0 +1,23 @@
+# 直前の検索が履歴に並び、詳細を開けることを確認する。
+# 02 が先に実行されている前提(番号順に実行される)。
+appId: ${APP_ID}
+---
+- launchApp
+
+- tapOn: '履歴'
+
+- extendedWaitUntil:
+    visible:
+      id: 'history-item-0'
+    timeout: 15000
+
+- tapOn:
+    id: 'history-item-0'
+
+- extendedWaitUntil:
+    visible:
+      id: 'history-detail-word'
+    timeout: 15000
+
+- assertVisible:
+    id: 'synonym-list'

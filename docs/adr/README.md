@@ -21,6 +21,7 @@
 | [0008](./0008-expo-router.md) | ルーティングに Expo Router を採用する | Accepted |
 | [0009](./0009-feature-based-frontend-structure.md) | フロントエンドを feature-based 構成にする | Accepted |
 | [0010](./0010-frontend-state-management.md) | 状態管理はグローバルストアを導入せず、性質ごとに道具を分ける | Accepted |
+| [0011](./0011-maestro-for-e2e.md) | E2E テストツールに Maestro を採用する | Accepted |
 
 ## テンプレート
 

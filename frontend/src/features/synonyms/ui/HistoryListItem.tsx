@@ -5,15 +5,17 @@ import type { SearchHistoryEntry } from '../domain/SearchHistoryEntry';
 interface HistoryListItemProps {
   entry: SearchHistoryEntry;
   onPress: () => void;
+  /** 一覧内の位置。E2E から先頭の項目を掴むために使う(id は uuid で予測できないため)。 */
+  index: number;
 }
 
-export function HistoryListItem({ entry, onPress }: HistoryListItemProps) {
+export function HistoryListItem({ entry, onPress, index }: HistoryListItemProps) {
   const preview = entry.generation?.synonyms.map((s) => s.term).join('、') ?? '';
 
   return (
     <Pressable
       onPress={onPress}
-      testID={`history-item-${entry.id}`}
+      testID={`history-item-${index}`}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
     >
       <View style={styles.textColumn}>
