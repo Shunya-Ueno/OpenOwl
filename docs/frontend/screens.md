@@ -106,6 +106,27 @@ flowchart TD
 - 認証エラーは入力欄の下にまとめて表示し、**どちらの項目が誤りかは示しません**
   （メールアドレスの存在有無が漏れるため）。
 
+  ### パスワード入力欄の AutoFill 設定（iOS）
+
+パスワード欄では `autoComplete` に加えて **`textContentType` を明示**します。
+RN の `autoComplete` → iOS `textContentType` のマッピングに、そのままでは
+不具合につながる2つの落とし穴があるためです。
+
+| 用途 | 指定 | 理由 |
+| --- | --- | --- |
+| ログイン | `autoComplete="current-password"` | `"password"` は iOS のマッピング表に無く `textContentType` が `undefined` になり、**保存済みパスワードの AutoFill が効かない** |
+| 新規登録 / パスワード再設定 | `autoComplete="new-password"` + `textContentType="password"` | `new-password` は iOS で `newPassword` にマップされ **Automatic Strong Password** が起動する。入力欄がカバービューで覆われ、自分のパスワードを打つにはキーボード上部の「Choose My Own Password」を押すしかない。ソフトウェアキーボードが出ていない環境では事実上入力できなくなる |
+
+`autoComplete` は Android 側のパスワードマネージャ向けにそのまま残し、
+iOS だけ `textContentType` で上書きしています（明示指定がマッピングより優先される）。
+
+> **将来の見直し**: Automatic Strong Password は本来よい機能です。
+> `associatedDomains`（`webcredentials:<ドメイン>`）を設定して iCloud キーチェーンとの
+> 紐付けを正式にサポートした段階で、`textContentType="newPassword"` +
+> `passwordRules="minlength: 8;"` への切り替えを再検討してください。
+> 現状はドメイン未設定のため、この機能を有効にしても中途半端な状態になります。
+
+
 ### 2. サインアップ `(auth)/sign-up`
 
 | 要素 | 内容 |
