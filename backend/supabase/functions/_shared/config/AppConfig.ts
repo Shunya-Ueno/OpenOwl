@@ -47,7 +47,7 @@ export class AppConfig {
       requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
       requireEnv('SUPABASE_ANON_KEY'),
       requireEnv('GEMINI_API_KEY'),
-      Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash-lite',
+      Deno.env.get('GEMINI_MODEL') ?? 'gemini-3.5-flash-lite',
       optionalEnvInt('GEMINI_TIMEOUT_MS', 10_000),
       optionalEnvInt('SYNONYM_RATE_LIMIT_PER_DAY', 30),
       optionalEnvInt('SYNONYM_RATE_LIMIT_PER_MINUTE', 10),
