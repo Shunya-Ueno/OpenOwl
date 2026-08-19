@@ -101,7 +101,10 @@ export class SynonymPrompt {
           },
           required: ['isKnownWord', 'synonyms'],
         },
-        thinkingConfig: { thinkingBudget: 0 },
+        // Gemini 3 系では thinkingBudget: 0 が 400 INVALID_ARGUMENT で拒否される
+        // (thinking を完全に無効化できない世代)。1 を指定すれば実測で
+        // thoughtsTokenCount は 0 のままなので、コストは 0 指定時と変わらない。
+        thinkingConfig: { thinkingBudget: 1 },
       },
     };
   }
