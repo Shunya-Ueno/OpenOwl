@@ -69,6 +69,9 @@ export function ResetPasswordScreen() {
               label="新しいパスワード(8文字以上)"
               secureTextEntry
               autoComplete="new-password"
+              // iOS の Automatic Strong Password による入力阻害を避ける。
+              // 理由は SignUpScreen の同じ箇所のコメントを参照。
+              textContentType="password"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
@@ -85,6 +88,9 @@ export function ResetPasswordScreen() {
               label="新しいパスワード(確認)"
               secureTextEntry
               autoComplete="new-password"
+              // iOS の Automatic Strong Password による入力阻害を避ける。
+              // 理由は SignUpScreen の同じ箇所のコメントを参照。
+              textContentType="password"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}

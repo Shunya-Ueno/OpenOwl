@@ -86,7 +86,10 @@ export function SignInScreen() {
               testID="sign-in-password-input"
               label="パスワード"
               secureTextEntry
-              autoComplete="password"
+              // "password" は RN の iOS 用マッピング表に存在せず textContentType が
+              // undefined になるため、iOS で保存済みパスワードの AutoFill が効かなかった。
+              // "current-password" が textContentType="password" にマップされる正しい値。
+              autoComplete="current-password"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}

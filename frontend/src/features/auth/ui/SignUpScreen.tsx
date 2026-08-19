@@ -70,7 +70,18 @@ export function SignUpScreen() {
               testID="sign-up-password-input"
               label="パスワード(8文字以上)"
               secureTextEntry
+              // Android のパスワードマネージャには「新規パスワード」と伝える。
               autoComplete="new-password"
+              // iOS では textContentType を明示的に上書きする。
+              // autoComplete="new-password" は iOS で textContentType="newPassword" にマップされ、
+              // Automatic Strong Password が起動して入力欄を黄色いカバービューで覆う。
+              // その状態で自分のパスワードを打つにはキーボード上部の
+              // 「Choose My Own Password」を押すしかなく、ソフトウェアキーボードが
+              // 出ていない環境(シミュレータのハードウェアキーボード接続時など)では
+              // 事実上入力不能になる。
+              // Associated Domains を設定して Automatic Strong Password を
+              // 正式にサポートするまでは "password" を使う(AutoFill の保存・補完は効く)。
+              textContentType="password"
               value={field.value}
               onChangeText={field.onChange}
               onBlur={field.onBlur}
