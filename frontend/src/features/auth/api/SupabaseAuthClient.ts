@@ -1,4 +1,4 @@
-import { FunctionsHttpError, type Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
@@ -150,20 +150,20 @@ export class SupabaseAuthClient {
   /**
    * アカウント削除。
    *
-   * 注意: `delete-account` Edge Function はまだバックエンドに実装されていない
-   * (Phase 3 の完了時点では generate-synonyms のみ)。呼び出すと 404 になる。
-   * バックエンド側の追加実装が完了してから有効化すること。
+   * `delete-account` Edge Function が `auth.users` から削除すると、`profiles` /
+   * `search_history` は on delete cascade で連鎖削除される(db-schema.md)。
+   *
+   * Function 成功後にクライアント側で明示的に signOut する。理由: サーバ側で
+   * ユーザーが消えても、手元に残ったアクセストークンは自動では失効通知されない
+   * (次のリフレッシュ時か、失効済みトークンで API を叩いて初めて 401 になる)。
+   * signOut せずに放置すると、削除後もローカルには一瞬「ログイン中」の状態が残る。
    */
   async deleteAccount(): Promise<void> {
     const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
-    if (!error) return;
-
-    // Function 自体が存在しない場合は「時間をおけば直る」類の障害ではないため、
-    // 再試行を促す文言を出さない(誤解を招くため)。
-    if (error instanceof FunctionsHttpError && error.context.status === 404) {
-      throw new Error('アカウント削除機能は現在準備中です。お手数ですがサポートまでご連絡ください。');
+    if (error) {
+      throw new Error('アカウントの削除に失敗しました。しばらくしてからもう一度お試しください。');
     }
-    throw new Error('アカウントの削除に失敗しました。しばらくしてからもう一度お試しください。');
+    await supabase.auth.signOut();
   }
 
   async signInWithGoogle(): Promise<SignInOutcome> {

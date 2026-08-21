@@ -14,10 +14,13 @@
 | --- | --- | --- | --- |
 | `POST` | `/generate-synonyms` | 単語の類義語を生成（またはキャッシュから取得）して返す | 必須 |
 | `OPTIONS` | `/generate-synonyms` | CORS プリフライト | 不要 |
+| `POST` | `/delete-account` | 自分のアカウントを削除する | 必須 |
+| `OPTIONS` | `/delete-account` | CORS プリフライト | 不要 |
 
-MVP のエンドポイントはこれ1本だけです。
 検索履歴の取得など、RLS で保護できる読み取りは Edge Function を作らず
 **PostgREST に直接問い合わせます**（[ADR-0004](./adr/0004-edge-functions-for-privileged-ops.md)）。
+アカウント削除は RLS では表現できない特権操作（`auth.users` の削除は service_role が必要）のため
+Edge Function にしています。
 
 ---
 
@@ -173,6 +176,61 @@ curl -X POST "$SUPABASE_URL/functions/v1/generate-synonyms" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"word":"happy"}'
+```
+
+---
+
+## `POST /delete-account`
+
+自分のアカウントを完全に削除します。確認ダイアログはクライアント側の責務です。
+
+### リクエスト
+
+```http
+POST /functions/v1/delete-account HTTP/1.1
+Authorization: Bearer <access_token>
+```
+
+本文はありません。**削除対象は常に JWT から取得したユーザー自身**で、
+リクエストボディで別のユーザーIDを指定することはできません。
+
+### レスポンス（204 No Content）
+
+本文なし。成功時、以下がサーバ側で連鎖的に削除されます（`db-schema.md` の `on delete cascade`）。
+
+- `auth.users` の当該行
+- `profiles`（1:1）
+- `search_history`（そのユーザーの検索履歴すべて）
+
+`words` / `synonym_generations` / `synonyms` はユーザーに紐づかない共有辞書データのため、
+**削除されません**（他ユーザーのキャッシュとして残り続ける、意図的な設計）。
+
+クライアントは 204 を受け取ったら、自分のセッションを明示的に `signOut` してください。
+サーバ側でユーザーが消えても、手元のアクセストークンは自動では失効通知されません。
+
+### エラーレスポンス
+
+`generate-synonyms` と同じエンベロープ形式を使います。
+
+| HTTP | `code` | `retryable` | 発生条件 |
+| --- | --- | --- | --- |
+| 401 | `unauthorized` | ❌ | `Authorization` ヘッダなし、JWT が無効・期限切れ |
+| 405 | `method_not_allowed` | ❌ | `POST` / `OPTIONS` 以外 |
+| 500 | `internal_error` | ✅ | Auth Admin API の呼び出し失敗など |
+
+### CORS
+
+`generate-synonyms` と同じ設定です（[上記参照](#cors)）。
+
+### 呼び出し例
+
+**supabase-js（フロントエンド）**
+
+```ts
+const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+if (!error) {
+  await supabase.auth.signOut();
+}
 ```
 
 ---

@@ -71,7 +71,8 @@ backend/supabase/functions/
 │   │   └── error/
 │   │       └── AppError.ts              # エラー階層
 │   ├── application/
-│   │   └── GenerateSynonymsUseCase.ts
+│   │   ├── GenerateSynonymsUseCase.ts
+│   │   └── DeleteAccountUseCase.ts
 │   ├── infrastructure/
 │   │   ├── gemini/
 │   │   │   ├── GeminiSynonymGenerator.ts
@@ -79,7 +80,8 @@ backend/supabase/functions/
 │   │   │   └── GeminiHttpClient.ts      # fetch + タイムアウト + リトライ
 │   │   ├── supabase/
 │   │   │   ├── SupabaseSynonymRepository.ts
-│   │   │   └── SearchHistoryRateLimiter.ts
+│   │   │   ├── SearchHistoryRateLimiter.ts
+│   │   │   └── SupabaseUserDeleter.ts   # auth.admin.deleteUser のラッパー
 │   │   └── logging/
 │   │       └── StructuredLogger.ts
 │   └── http/
@@ -87,7 +89,9 @@ backend/supabase/functions/
 │       ├── JwtAuthenticator.ts
 │       ├── JsonRequestParser.ts
 │       └── ErrorResponseMapper.ts
-└── generate-synonyms/
+├── generate-synonyms/
+│   └── index.ts                          # 合成ルート
+└── delete-account/
     └── index.ts                          # 合成ルート
 ```
 
