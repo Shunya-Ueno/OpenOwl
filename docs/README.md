@@ -21,6 +21,9 @@ OpenOwl（外国語学習アプリ）の設計ドキュメント一式です。
 | [`frontend/state-management.md`](./frontend/state-management.md) | 認証状態・サーバ状態・フォーム状態の扱い | フロントエンド | ✅ |
 | [`testing/e2e-strategy.md`](./testing/e2e-strategy.md) | テストの層、E2E ツール選定、テストデータとコストの扱い | 全員 | ✅ |
 | [`testing/ci-pipeline.md`](./testing/ci-pipeline.md) | GitHub Actions の構成、シークレット管理、失敗時の対応 | 全員 | ✅ |
+| [`store/app-store-listing.md`](./store/app-store-listing.md) | App Store 掲載情報の下書き（名前・説明文・キーワード等） | 全員 | 🟡 下書き。スクショ未添付 |
+| [`store/privacy-policy.md`](./store/privacy-policy.md) | プライバシーポリシー下書き（ホスティング先未確定） | 全員 | 🟡 下書き。ホスティング先要相談 |
+| [`store/support-page.md`](./store/support-page.md) | サポートページ下書き（ホスティング先未確定） | 全員 | 🟡 下書き。連絡先メール要確定 |
 
 ## この構成にした理由
 
