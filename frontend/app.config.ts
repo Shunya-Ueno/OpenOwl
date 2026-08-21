@@ -63,6 +63,11 @@ const config: ExpoConfig = {
     supportsTablet: true,
     bundleIdentifier: IOS_BUNDLE_IDENTIFIER,
     usesAppleSignIn: true, // Sign in with Apple のエンタイトルメントを自動付与
+    infoPlist: {
+      // 課金・暗号化機能を使わないため、App Store Connect の輸出コンプライアンス
+      // 質問をビルドごとに手動で答えずに済むよう明示しておく。
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     package: ANDROID_PACKAGE,
@@ -80,6 +85,9 @@ const config: ExpoConfig = {
   plugins,
   extra: {
     router: {},
+    eas: {
+      projectId: 'd2704085-35bd-4291-977e-ae3326cdb3b6',
+    },
   },
 };
 
