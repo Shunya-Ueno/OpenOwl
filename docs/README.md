@@ -62,3 +62,6 @@
 | [0004](./adr/0004-state-management.md) | サーバー状態は TanStack Query、クライアント状態は Zustand | 1 |
 | [0005](./adr/0005-mobile-only-viewport.md) | デスクトップ画面幅向けのレイアウト分岐を実装しない | 1 |
 | [0006](./adr/0006-vercel-frontend-only.md) | Vercel はフロント配信専用とし、バックエンドを置かない | 1 |
+| [0007](./adr/0007-deepseek-chat-over-reasoner.md) | DeepSeek のモデルは `deepseek-chat` を使う | 2 |
+| [0008](./adr/0008-global-generation-cache.md) | 生成結果は全ユーザー横断のキャッシュとして共有する | 2 |
+| [0009](./adr/0009-read-path-via-postgrest.md) | 読み取り系 API を作らず、PostgREST を直接使う | 2 |
