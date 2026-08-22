@@ -8,8 +8,8 @@ iOS ネイティブアプリを主戦場としつつ、同一コードベース�
 - LLM: DeepSeek API（Edge Functions からのみ呼び出す）
 - Web/PWA ホスティング: Vercel（フロント配信のみ）
 
-> **現在の状態: バックエンド設計フェーズ（フェーズ 2）まで完了。**
-> `frontend/` と `backend/` の実装はまだ存在しない。本 README は「今できること」を書いたもので、
+> **現在の状態: バックエンド実装（フェーズ 3）とフロントエンド設計（フェーズ 4）まで完了。**
+> `backend/` は実装済み。`frontend/` の実装はフェーズ 5 で行う。本 README は「今できること」を書いたもので、
 > 実装フェーズの進行に合わせて更新される。設計の全体像は [`docs/`](./docs/README.md) を参照。
 
 ## ドキュメント
@@ -23,6 +23,7 @@ iOS ネイティブアプリを主戦場としつつ、同一コードベース�
 | [docs/api-spec.md](./docs/api-spec.md) | Edge Functions API 仕様 |
 | [docs/llm-integration.md](./docs/llm-integration.md) | DeepSeek 連携設計 |
 | [docs/security.md](./docs/security.md) | シークレット管理・認可境界 |
+| [docs/frontend-design.md](./docs/frontend-design.md) | 画面構成・状態管理・ディレクトリ構造・Web/PWA 対応 |
 | [docs/deployment.md](./docs/deployment.md) | Vercel / Supabase デプロイ構成 |
 | [CLAUDE.md](./CLAUDE.md) | AI エージェント向けのプロジェクト規約 |
 

@@ -15,6 +15,7 @@
 | `api-spec.md` | Edge Functions の API 仕様（リクエスト / レスポンス / エラーコード） | バックエンド / フロント | 2 |
 | `llm-integration.md` | DeepSeek 連携設計。モデル選定理由、プロンプト設計、クラス設計、リトライ / フォールバック | バックエンド | 2 |
 | `security.md` | シークレット管理、RLS 方針、認可境界、入力バリデーション | 全員 | 2 |
+| `frontend-design.md` | 画面構成と遷移、ディレクトリ構造、状態管理、API アクセス層、Web/PWA 対応、プラットフォーム差異 | フロントエンド | 4 |
 | `roadmap.md` | フェーズ計画と将来機能のスコープ境界 | 全員 | 0 |
 | `adr/` | Architecture Decision Record。「なぜその選択をしたか」の記録 | 全員 | 1 以降 |
 
@@ -51,6 +52,7 @@
 3. `repository-structure.md`（どこに何があるか）
 4. `db-schema.md` → `api-spec.md` → `llm-integration.md`（バックエンドの詳細）
 5. `security.md`（触る前に必ず）
+6. `frontend-design.md`（フロントエンドを触るなら）
 
 ## ADR 一覧
 
@@ -65,3 +67,7 @@
 | [0007](./adr/0007-deepseek-chat-over-reasoner.md) | DeepSeek のモデルは `deepseek-chat` を使う | 2 |
 | [0008](./adr/0008-global-generation-cache.md) | 生成結果は全ユーザー横断のキャッシュとして共有する | 2 |
 | [0009](./adr/0009-read-path-via-postgrest.md) | 読み取り系 API を作らず、PostgREST を直接使う | 2 |
+| [0010](./adr/0010-feature-based-frontend-structure.md) | フロントエンドは feature-based のディレクトリ構成にする | 4 |
+| [0011](./adr/0011-fetch-over-functions-invoke.md) | Edge Function の呼び出しに `functions.invoke` ではなく `fetch` を使う | 4 |
+| [0012](./adr/0012-generation-as-mutation.md) | 類義語生成は mutation として扱い、URL 直接アクセスでは再生成しない | 4 |
+| [0013](./adr/0013-chunked-securestore-session.md) | ネイティブのセッション永続化に分割 SecureStore アダプタを使う | 4 |

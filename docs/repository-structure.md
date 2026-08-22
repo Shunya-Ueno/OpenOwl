@@ -48,10 +48,8 @@ OpenOwl/
 │   ├── tsconfig.json
 │   ├── app/                               # Expo Router のルート定義（画面）
 │   ├── src/
-│   │   ├── domain/                        # ドメインモデル（画面非依存）
-│   │   ├── application/                   # ユースケース / hooks
-│   │   ├── infrastructure/                # Supabase クライアント、ストレージ、認証アダプタ
-│   │   └── ui/                            # 再利用コンポーネント、テーマ
+│   │   ├── features/                      # 機能単位（auth / synonyms / history / profile）
+│   │   └── shared/                        # supabase クライアント、api、query、ui、theme
 │   ├── public/                            # Web 専用の静的ファイル
 │   │   ├── manifest.webmanifest
 │   │   └── sw.js
@@ -60,7 +58,12 @@ OpenOwl/
 └── .github/workflows/                     # ── フェーズ 6 で作成 ──
 ```
 
-**現時点（フェーズ 2 完了時）で存在するのは `docs/` と直下のファイルのみ。**
+> **注**: `frontend/src/` の内訳は当初この場所で層優先（`domain` / `application` /
+> `infrastructure` / `ui`）として素描していたが、フェーズ 4 で feature 優先へ変更した
+> （[ADR-0010](./adr/0010-feature-based-frontend-structure.md)）。
+> 正典は [`frontend-design.md`](./frontend-design.md) §4。
+
+**現時点（フェーズ 4 完了時）で存在するのは `docs/` と `backend/` および直下のファイル。**
 空ディレクトリを先に作らない方針とする（存在＝中身がある、を保つため）。
 
 ### `backend/supabase/` という二重の階層について
