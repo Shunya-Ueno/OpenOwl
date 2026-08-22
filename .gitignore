@@ -1,0 +1,40 @@
+# --- secrets / env ---
+.env
+.env.*
+!.env.example
+*.pem
+*.p8
+
+# --- node ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# --- expo / react native ---
+.expo/
+.expo-shared/
+dist/
+web-build/
+ios/
+android/
+*.jks
+*.keystore
+
+# --- supabase ---
+backend/supabase/.branches/
+backend/supabase/.temp/
+
+# --- vercel ---
+.vercel/
+
+# --- tooling / editors ---
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+.tsbuildinfo
+*.tsbuildinfo
+.idea/
+.vscode/*
+!.vscode/extensions.json
