@@ -37,10 +37,10 @@ export class GenerateSynonymsUseCase {
   async execute(command: GenerateSynonymsCommand): Promise<GenerateSynonymsResult> {
     const term = Term.fromInput(command.word, command.language);
 
-    // 5. レート制限チェック(キャッシュヒットは消費しないため、この時点ではまだ判定できない。
-    //    ただし DeepSeek 呼び出しに至る前に弾く必要があるため、ここで一度チェックする。
-    //    実際に消費(カウント対象化)されるのは save 時に lookups へ cache_hit=false で
-    //    記録された時点。RateLimiter 実装は cache_hit=false の行のみを数える。
+    // 5. レート制限チェック。実際に消費(カウント対象化)されるのは DeepSeek 呼び出しが
+    //    成功した直後(下記 recordAttempt)。カウント元は削除不可能な台帳
+    //    (generation_attempts)であり、ユーザーが削除できる lookups には依存しない
+    //    (docs/security.md 6)。
     await this.rateLimiter.assertWithinLimit(command.userId);
 
     // 6. term の解決
@@ -57,7 +57,7 @@ export class GenerateSynonymsUseCase {
         userId: command.userId,
         term: resolvedTerm.displayText,
       });
-      return this.toResult(resolvedTerm, latest, true, false);
+      return this.toResult(resolvedTerm, latest, true, false, command.maxResults);
     }
 
     // 縮退応答用に、forceRefresh でも直近の生成(TTL切れ含む)を把握しておく。
@@ -81,7 +81,7 @@ export class GenerateSynonymsUseCase {
           term: resolvedTerm.displayText,
           errorCode: (error as DomainError).code,
         });
-        return this.toResult(resolvedTerm, fallbackCandidate, true, true);
+        return this.toResult(resolvedTerm, fallbackCandidate, true, true, command.maxResults);
       }
       this.logger.error('synonyms.upstream_failed', {
         userId: command.userId,
@@ -89,6 +89,21 @@ export class GenerateSynonymsUseCase {
         errorCode: error instanceof DomainError ? error.code : 'internal_error',
       });
       throw error;
+    }
+
+    // DeepSeek 呼び出しが成功した時点でコストが発生している。レート制限の
+    // カウント対象として記録する(失敗時は記録しない = 元の意図を維持)。
+    await this.rateLimiter.recordAttempt(command.userId, resolvedTerm.id);
+
+    if (generated.synonyms.length === 0) {
+      // 「類義語なし」を 30 日キャッシュすると、同じ語が長期間その結果に固定される
+      // (プロンプト改善や一時的な揺らぎで次は非空になる可能性があるため)。
+      // 結果自体はそのままユーザーに返すが、永続化はしない。
+      this.logger.info('synonyms.empty_result', {
+        userId: command.userId,
+        term: resolvedTerm.displayText,
+      });
+      return this.toAdHocResult(resolvedTerm, generated.synonyms);
     }
 
     // 10. 永続化(生成 + 明細 + 履歴を1トランザクション)
@@ -114,7 +129,7 @@ export class GenerateSynonymsUseCase {
         latencyMs: generated.latencyMs,
       });
 
-      return this.toResult(resolvedTerm, saved, false, false);
+      return this.toResult(resolvedTerm, saved, false, false, command.maxResults);
     } catch (persistError) {
       // 生成自体は成功している。DeepSeek のコストを既に払っている以上、
       // ユーザーに結果を渡さないのは損失が二重になるため、エラーにせず返す
@@ -138,6 +153,7 @@ export class GenerateSynonymsUseCase {
     generation: SynonymGeneration,
     cached: boolean,
     stale: boolean,
+    maxResults: number,
   ): GenerateSynonymsResult {
     return {
       term: { id: term.id, text: term.displayText, language: term.language },
@@ -148,10 +164,16 @@ export class GenerateSynonymsUseCase {
         cached,
         stale,
       },
-      synonyms: generation.synonyms.map((s) => this.toSynonymDto(s)),
+      // キャッシュされた生成は過去のリクエストの maxResults で保存されている場合が
+      // あるため、今回のリクエストの maxResults で必ず切り詰める。
+      synonyms: generation.synonyms.slice(0, maxResults).map((s) => this.toSynonymDto(s)),
     };
   }
 
+  /**
+   * 永続化しなかった(できなかった)結果を返す。generation.id は必ず null にする
+   * — 実在しない UUID を発行すると、本物の生成 ID と区別がつかなくなるため。
+   */
   private toAdHocResult(
     term: ResolvedTerm,
     synonyms: readonly Synonym[],
@@ -159,7 +181,7 @@ export class GenerateSynonymsUseCase {
     return {
       term: { id: term.id, text: term.displayText, language: term.language },
       generation: {
-        id: crypto.randomUUID(),
+        id: null,
         model: this.provider.model,
         createdAt: new Date().toISOString(),
         cached: false,

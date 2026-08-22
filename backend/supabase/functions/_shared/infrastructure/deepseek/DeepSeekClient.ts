@@ -1,4 +1,5 @@
 import {
+  InternalDomainError,
   UpstreamRateLimitedError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
@@ -39,21 +40,30 @@ export class DeepSeekClient {
 
   /**
    * @throws UpstreamTimeoutError | UpstreamRateLimitedError | UpstreamUnavailableError
+   *        | InternalDomainError
    */
   async createChatCompletion(request: ChatCompletionRequest): Promise<ChatCompletionResponse> {
     const startedAt = performance.now();
+    // docs/llm-integration.md 5.2: タイムアウトは「リトライ含む」呼び出し全体で
+    // timeoutMs。個々の attempt にではなく、この締切に対して残り時間を配分する。
+    const deadlineAt = Date.now() + this.timeoutMs;
 
     let lastError: unknown;
     // docs/llm-integration.md 5.1: リトライは最大1回。429/5xx/ネットワークエラーのみ。
     for (let attempt = 0; attempt <= 1; attempt++) {
+      const remainingMs = deadlineAt - Date.now();
+      if (remainingMs <= 0) {
+        throw lastError ?? new UpstreamTimeoutError('deepseek request timed out before first attempt');
+      }
+
       try {
-        return await this.attempt(request, startedAt);
+        return await this.attempt(request, startedAt, remainingMs);
       } catch (error) {
         lastError = error;
         if (attempt === 1 || !this.isRetryable(error)) break;
 
-        const delayMs = this.retryDelayMs(error);
-        if (delayMs === null) break; // Retry-After が予算を超える場合は諦める
+        const delayMs = this.retryDelayMs(error, deadlineAt - Date.now());
+        if (delayMs === null) break; // 残りの予算内に収まらない場合はリトライしない
         await this.sleep(delayMs);
       }
     }
@@ -64,9 +74,10 @@ export class DeepSeekClient {
   private async attempt(
     request: ChatCompletionRequest,
     startedAt: number,
+    timeoutMs: number,
   ): Promise<ChatCompletionResponse> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -90,16 +101,16 @@ export class DeepSeekClient {
       if (!response.ok) {
         if (response.status === 429) {
           const retryAfter = this.parseRetryAfter(response.headers.get('retry-after'));
-          throw new UpstreamRateLimitedError(
-            `deepseek returned 429`,
-            retryAfter,
-          );
+          throw new UpstreamRateLimitedError(`deepseek returned 429`, retryAfter);
         }
         if (response.status >= 500) {
           throw new UpstreamUnavailableError(`deepseek returned ${response.status}`);
         }
-        // 4xx(429以外)はリトライ対象外の異常応答。呼び出し側の実装不備とみなす。
-        throw new UpstreamUnavailableError(`deepseek returned unexpected status ${response.status}`);
+        // 4xx(429以外)はリトライ対象外。バリデーションエラーやキー不正など、
+        // 再送しても解決しない呼び出し側の問題であり、「一時的に利用できません」
+        // (upstream_unavailable)として提示するのは誤りなので internal_error にする
+        // (docs/llm-integration.md 5.1)。
+        throw new InternalDomainError(`deepseek returned unexpected status ${response.status}`);
       }
 
       const body = await response.json();
@@ -123,7 +134,8 @@ export class DeepSeekClient {
       }
       if (
         error instanceof UpstreamRateLimitedError ||
-        error instanceof UpstreamUnavailableError
+        error instanceof UpstreamUnavailableError ||
+        error instanceof InternalDomainError
       ) {
         throw error;
       }
@@ -139,12 +151,13 @@ export class DeepSeekClient {
   }
 
   /** Retry-After が残りのタイムアウト予算を超える場合は null(=リトライしない)を返す。 */
-  private retryDelayMs(error: unknown): number | null {
+  private retryDelayMs(error: unknown, remainingBudgetMs: number): number | null {
     if (error instanceof UpstreamRateLimitedError && error.retryAfterSeconds !== null) {
       const ms = error.retryAfterSeconds * 1000;
-      return ms <= this.timeoutMs ? ms : null;
+      return ms <= remainingBudgetMs ? ms : null;
     }
-    return 500 + Math.floor(Math.random() * 500);
+    const jitterMs = 500 + Math.floor(Math.random() * 500);
+    return jitterMs <= remainingBudgetMs ? jitterMs : null;
   }
 
   private parseRetryAfter(value: string | null): number | null {

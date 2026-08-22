@@ -24,6 +24,7 @@ export interface HttpErrorBody {
 export interface MappedError {
   readonly status: number;
   readonly body: HttpErrorBody;
+  readonly headers: HeadersInit;
 }
 
 const MESSAGES: Record<string, string> = {
@@ -63,5 +64,10 @@ function build(status: number, code: string, retryAfterSeconds?: number): Mapped
         ...(retryAfterSeconds !== undefined ? { retryAfterSeconds } : {}),
       },
     },
+    // docs/api-spec.md 3.3: 429 には Retry-After ヘッダも併せて返す(本文の
+    // フィールドだけでは標準の HTTP クライアント/プロキシが解釈できない)。
+    headers: retryAfterSeconds !== undefined
+      ? { 'retry-after': String(retryAfterSeconds) }
+      : {},
   };
 }

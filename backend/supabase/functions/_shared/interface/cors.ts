@@ -16,7 +16,10 @@ export class CorsPolicy {
     }
     return {
       'access-control-allow-origin': origin,
-      'access-control-allow-headers': 'authorization, content-type',
+      // apikey は api-spec.md 2.2 が必須とするヘッダ。x-client-info は
+      // supabase-js が既定で送るため、どちらを欠いてもブラウザからのプリフライトが
+      // 失敗し、Web/PWA クライアントが関数に到達できなくなる。
+      'access-control-allow-headers': 'authorization, content-type, apikey, x-client-info',
       'access-control-allow-methods': 'POST, OPTIONS',
       'access-control-max-age': '86400',
       vary: 'origin',

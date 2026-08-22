@@ -51,9 +51,12 @@ export class SupabaseSynonymGenerationRepository implements SynonymGenerationRep
       p_model: input.model,
       p_prompt_version: input.promptVersion,
       p_max_results: input.maxResults,
-      p_prompt_tokens: input.promptTokens,
-      p_completion_tokens: input.completionTokens,
-      p_cached_prompt_tokens: input.cachedPromptTokens,
+      // RPC の引数は DEFAULT NULL を持つため型上は `number | undefined`(生成された
+      // database.types.ts を参照)。null をそのまま渡すと型エラーになるため、
+      // undefined に変換して「省略」として扱う(DB 側は結局 NULL になり挙動は同じ)。
+      p_prompt_tokens: input.promptTokens ?? undefined,
+      p_completion_tokens: input.completionTokens ?? undefined,
+      p_cached_prompt_tokens: input.cachedPromptTokens ?? undefined,
       p_latency_ms: input.latencyMs,
       p_items: input.synonyms.map((s, index) => ({
         position: index,

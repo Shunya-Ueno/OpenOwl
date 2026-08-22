@@ -18,7 +18,9 @@ export interface GenerateSynonymsResult {
     readonly language: string;
   };
   readonly generation: {
-    readonly id: string;
+    // 永続化に失敗した場合(docs/api-spec.md 3.5 手順10の注記)は null になる。
+    // その場合、この結果は履歴にもキャッシュにも残らない。
+    readonly id: string | null;
     readonly model: string;
     readonly createdAt: string;
     readonly cached: boolean;

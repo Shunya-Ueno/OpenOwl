@@ -11,13 +11,40 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
+      generation_attempts: {
+        Row: {
+          created_at: string
+          id: string
+          term_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          term_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          term_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generation_attempts_term_id_fkey"
+            columns: ["term_id"]
+            isOneToOne: false
+            referencedRelation: "terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lookups: {
         Row: {
           cache_hit: boolean
@@ -232,19 +259,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      oldest_generation_attempt_at: {
+        Args: { p_since: string; p_user_id: string }
+        Returns: string
+      }
       record_cached_lookup: {
         Args: { p_generation_id: string; p_term_id: string; p_user_id: string }
         Returns: string
       }
+      record_generation_attempt: {
+        Args: { p_term_id: string; p_user_id: string }
+        Returns: string
+      }
       save_synonym_generation: {
         Args: {
-          p_cached_prompt_tokens: number
-          p_completion_tokens: number
-          p_items: Json
-          p_latency_ms: number
+          p_cached_prompt_tokens?: number
+          p_completion_tokens?: number
+          p_items?: Json
+          p_latency_ms?: number
           p_max_results: number
           p_model: string
-          p_prompt_tokens: number
+          p_prompt_tokens?: number
           p_prompt_version: string
           p_term_id: string
           p_user_id: string

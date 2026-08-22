@@ -100,6 +100,6 @@ Deno.serve(async (request: Request): Promise<Response> => {
       });
     }
 
-    return jsonResponse(mapped.body, mapped.status, corsHeaders);
+    return jsonResponse(mapped.body, mapped.status, { ...corsHeaders, ...mapped.headers });
   }
 });

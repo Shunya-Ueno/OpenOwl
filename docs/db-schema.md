@@ -256,7 +256,7 @@ create index synonym_items_generation_idx
 | `term_id` | `uuid` | NOT NULL, FK → `terms(id)` CASCADE | |
 | `generation_id` | `uuid` | NULL 可, FK → `synonym_generations(id)` ON DELETE SET NULL | 表示した生成結果 |
 | `kind` | `lookup_kind` | NOT NULL, DEFAULT `'synonym'` | 将来の拡張点 |
-| `cache_hit` | `boolean` | NOT NULL, DEFAULT `false` | レート制限と課金分析に使う |
+| `cache_hit` | `boolean` | NOT NULL, DEFAULT `false` | 課金分析に使う（レート制限のカウント元には使わない。理由は §3.6） |
 | `created_at` | `timestamptz` | NOT NULL, DEFAULT `now()` | |
 
 ```sql
@@ -278,7 +278,7 @@ create index lookups_user_created_idx on public.lookups (user_id, created_at des
 -- RLS の EXISTS 判定用
 create index lookups_user_generation_idx on public.lookups (user_id, generation_id);
 
--- レート制限のカウント用（課金が発生した呼び出しのみ）
+-- 課金分析用（課金が発生した呼び出しのみ）
 create index lookups_rate_limit_idx on public.lookups (user_id, created_at desc)
   where cache_hit = false;
 ```
@@ -291,6 +291,41 @@ create index lookups_rate_limit_idx on public.lookups (user_id, created_at desc)
 **同じ単語を何度引いても行を追加する**（UPSERT しない）。
 履歴は「イベントの記録」であり、頻度や時系列が将来の復習機能で意味を持つため。
 画面表示では `distinct on (term_id)` で最新のみを出す。
+
+### 3.6 `generation_attempts`
+
+**レート制限専用の台帳。** `lookups` から独立させている。
+
+| 列 | 型 | 制約 | 説明 |
+| --- | --- | --- | --- |
+| `id` | `uuid` | PK | |
+| `user_id` | `uuid` | NOT NULL, FK → `auth.users(id)` CASCADE | |
+| `term_id` | `uuid` | NOT NULL, FK → `terms(id)` CASCADE | |
+| `created_at` | `timestamptz` | NOT NULL, DEFAULT `now()` | |
+
+```sql
+create table public.generation_attempts (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  term_id    uuid not null references public.terms (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index generation_attempts_user_created_idx
+  on public.generation_attempts (user_id, created_at desc);
+```
+
+**なぜ `lookups` を使わなかったか**: `lookups` は `lookups_delete_own` により
+ユーザー自身が削除できる（履歴削除 UX。§4.3 参照）。レート制限のカウント元を
+`lookups` にすると、履歴を消すだけで生成回数の上限がリセットできてしまう。
+`generation_attempts` は **RLS を有効化した上で一切のポリシーを持たない**
+（§4.1 の原則どおり、ポリシーがなければ全ロールから全操作が拒否される）。
+書き込みは `service_role` が RPC（`record_generation_attempt`）経由でのみ行い、
+クライアントから直接読み書きする経路は存在しない。
+
+DeepSeek を実際に呼び出すたびに（成功時のみ）1 行追加する。`lookups` のような
+表示用の情報（`generation_id` や `cache_hit`）は持たない。存在自体が
+「呼び出しが発生した」という事実だけを表す。
 
 ## 4. RLS ポリシー設計
 
@@ -312,6 +347,7 @@ create index lookups_rate_limit_idx on public.lookups (user_id, created_at desc)
 | `synonym_generations` | **自分の `lookups` が参照する行のみ** | 不可（Edge Function） | 不可 | 不可 |
 | `synonym_items` | 親の生成が可視な行のみ | 不可（Edge Function） | 不可 | 不可 |
 | `lookups` | 本人のみ | 本人のみ | 不可 | 本人のみ（履歴削除 UX） |
+| `generation_attempts` | 不可（誰からも） | 不可（Edge Function の RPC のみ） | 不可 | 不可 |
 
 **共有データの SELECT をなぜ「全 authenticated に開放」しないのか**:
 `terms` / 生成結果の中身は辞書的知識であり個人情報ではない。
@@ -415,10 +451,12 @@ PostgREST は複数リクエストをまたぐトランザクションを提供�
 | 関数 | 目的 |
 | --- | --- |
 | `find_or_create_term(language, display_text, normalized_text) → terms` | 語の解決。競合時も 1 行に収束させる |
-| `find_cached_generation(term_id, model, prompt_version, ttl) → uuid` | 有効なキャッシュの検索 |
+| `find_latest_generation(term_id, model, prompt_version) → (id, created_at)` | term/model/prompt_version に対する最新の生成を返す（TTL 内外を問わない）。新鮮かどうかの判定は呼び出し側が行う |
 | `save_synonym_generation(...) → uuid` | 生成 + 明細 + 履歴を原子的に保存 |
-| `record_cached_lookup(user_id, term_id, generation_id) → uuid` | キャッシュヒット時の履歴記録 |
-| `count_recent_generations(user_id, window) → integer` | レート制限のカウント |
+| `record_cached_lookup(user_id, term_id, generation_id) → uuid` | キャッシュヒット（TTL内・縮退応答の双方）時の履歴記録 |
+| `record_generation_attempt(user_id, term_id) → uuid` | `generation_attempts` への記録。DeepSeek 呼び出しが成功した直後にのみ呼ぶ |
+| `count_recent_generations(user_id, since) → integer` | レート制限のカウント。`generation_attempts` を参照する（§3.6） |
+| `oldest_generation_attempt_at(user_id, since) → timestamptz` | 上限超過時、429 の `Retry-After` を正確に計算するために窓内で最も古い試行時刻を返す |
 
 すべて `security definer` + `set search_path = ''` とし、
 **`anon` / `authenticated` からの実行権限を剥奪する**（`service_role` のみ実行可）。
