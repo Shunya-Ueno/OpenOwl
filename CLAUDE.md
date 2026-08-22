@@ -128,7 +128,7 @@ npm run lint           # ESLint
 ## DeepSeek 連携に関する注意
 
 - モデルは `deepseek-chat` を使う。`deepseek-reasoner` は使わない（理由は
-  `docs/llm-integration.md` および `docs/adr/0004-deepseek-chat-over-reasoner.md`）。
+  `docs/llm-integration.md` および `docs/adr/0007-deepseek-chat-over-reasoner.md`）。
 - **トークンを無駄にしない**:
   - システムプロンプトは固定文字列にし、変動部分（単語）を後ろに置く
     （プロンプトキャッシュのヒット率を上げるため）

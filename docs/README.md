@@ -51,3 +51,14 @@
 3. `repository-structure.md`（どこに何があるか）
 4. `db-schema.md` → `api-spec.md` → `llm-integration.md`（バックエンドの詳細）
 5. `security.md`（触る前に必ず）
+
+## ADR 一覧
+
+| # | 決定 | フェーズ |
+| --- | --- | --- |
+| [0001](./adr/0001-monorepo-layout.md) | モノレポとし、直下を `frontend/` と `backend/` に分割する | 1 |
+| [0002](./adr/0002-no-shared-package-for-now.md) | 現時点では `packages/shared` を作らない | 1 |
+| [0003](./adr/0003-expo-router.md) | ルーティングに Expo Router を採用する | 1 |
+| [0004](./adr/0004-state-management.md) | サーバー状態は TanStack Query、クライアント状態は Zustand | 1 |
+| [0005](./adr/0005-mobile-only-viewport.md) | デスクトップ画面幅向けのレイアウト分岐を実装しない | 1 |
+| [0006](./adr/0006-vercel-frontend-only.md) | Vercel はフロント配信専用とし、バックエンドを置かない | 1 |
