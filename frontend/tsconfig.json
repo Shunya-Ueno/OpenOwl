@@ -1,0 +1,20 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    // Metro は <name>.native.ts / <name>.web.ts をプラットフォーム別に解決するが、
+    // tsc はこれを標準では理解しない。native 側を優先して型検査する
+    // (native/web の実装は同じシグネチャを保つ設計にしている)。
+    "moduleSuffixes": [".native", ""],
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}

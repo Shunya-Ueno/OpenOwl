@@ -538,6 +538,18 @@ Web 側の `localStorage` は XSS 時にトークンを奪われうるが、
 // ネイティブ側は同名の .native.ts を no-op にする
 ```
 
+### 10.1.1 `<head>` タグの注入（実装時の判明事項）
+
+Expo Router の `app/+html.tsx` によるルート HTML カスタマイズ（manifest リンク・
+`theme-color` 等の注入）は、`web.output: "static"`（ルートごとの事前レンダリング）
+でのみ機能する。本プロジェクトは `"single"`（SPA）を採用しているため
+`+html.tsx` は効かず、実測でも無視されることを確認した。
+
+代わりに `src/shared/pwa/injectHeadTags.web.ts` が起動時（`app/_layout.tsx` の
+`useEffect`）に `document.head` へ `<link rel="manifest">` / `theme-color` などを
+冪等に追加する。`web.output` を `"static"` に変える判断ではない
+（[`deployment.md`](./deployment.md) §1.2 の理由により `"single"` を維持する）。
+
 ### 10.2 キャッシュ方針（`public/sw.js`）
 
 | 対象 | 戦略 |
