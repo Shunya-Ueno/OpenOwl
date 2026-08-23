@@ -1,4 +1,4 @@
-import type { Logger, LogFields } from '../../domain/ports/Logger.ts';
+import type { LogFields, Logger } from '../../domain/ports/Logger.ts';
 
 /** 1行1JSONの構造化ログ。docs/llm-integration.md 6章。 */
 export class StructuredLogger implements Logger {

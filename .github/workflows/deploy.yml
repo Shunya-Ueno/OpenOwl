@@ -1,0 +1,88 @@
+# 本番デプロイ。設計は docs/testing-ci.md 7.2 と ADR-0015。
+#
+# docs/deployment.md 4 の順序制約 —
+#   1. マイグレーション → 2. Edge Function → 3. フロントエンド
+# — をパイプラインの構造で守るためのワークフロー。
+#
+# Vercel の Git 連携は main に対して無効化してある(frontend/vercel.json)。
+# したがって本番フロントエンドを出せるのはこのワークフローだけである。
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# デプロイ同士が追い越さないようにする。cancel-in-progress は false:
+# 走っているデプロイを途中で止めると、マイグレーションだけ適用されて
+# Function が古いままになりうる。
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Supabase (migrations → edge function)
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # db push / functions deploy はどちらも冪等なので、
+      # 「backend に変更があったか」を判定せず毎回実行する。
+      # 判定を持つ方が(force push や squash merge で)静かに誤りやすい(ADR-0015)。
+      - name: Link project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF_PROD }}"
+
+      - name: Apply migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db push
+
+      - name: Deploy edge function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        # JWT 検証は有効のままにする(--no-verify-jwt を使わない / docs/security.md 4.1)。
+        run: supabase functions deploy synonyms
+
+  frontend:
+    name: Vercel (production)
+    needs: backend
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      # Vercel CLI とトークンを使わず Deploy Hook を叩く。
+      # 必要な権限は「このプロジェクトのビルドを開始できる」だけで足り、
+      # ビルドは普段どおり Vercel 上で走る(ADR-0015)。
+      - name: Trigger Vercel production deploy
+        env:
+          DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$DEPLOY_HOOK_URL" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK_URL が未設定です。"
+            echo "::error::vercel.json で main の自動デプロイを無効化しているため、"
+            echo "::error::このフックが無いと本番フロントエンドは誰もデプロイできません。"
+            echo "::error::設定手順は docs/deployment.md 5 を参照してください。"
+            exit 1
+          fi
+
+          status=$(curl --silent --show-error --fail-with-body \
+            --output /tmp/deploy-hook-response.json \
+            --write-out '%{http_code}' \
+            --request POST "$DEPLOY_HOOK_URL")
+
+          echo "Vercel Deploy Hook: HTTP $status"
+          cat /tmp/deploy-hook-response.json

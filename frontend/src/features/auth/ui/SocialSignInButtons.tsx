@@ -1,6 +1,7 @@
 import { Platform, View, StyleSheet } from 'react-native';
 import { Button } from '../../../shared/ui/Button';
 import { spacing } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 
 interface SocialSignInButtonsProps {
   readonly onPressGoogle: () => void;
@@ -24,6 +25,7 @@ export function SocialSignInButtons({
   return (
     <View style={styles.container}>
       <Button
+        testID={testIds.signIn.google}
         label="Google で続ける"
         variant="secondary"
         onPress={onPressGoogle}
@@ -32,6 +34,7 @@ export function SocialSignInButtons({
       />
       {showApple ? (
         <Button
+          testID={testIds.signIn.apple}
           label="Apple で続ける"
           variant="secondary"
           onPress={onPressApple}

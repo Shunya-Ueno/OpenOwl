@@ -10,6 +10,7 @@ interface ButtonProps {
   readonly disabled?: boolean;
   readonly loading?: boolean;
   readonly accessibilityHint?: string;
+  readonly testID?: string;
 }
 
 export function Button({
@@ -19,6 +20,7 @@ export function Button({
   disabled = false,
   loading = false,
   accessibilityHint,
+  testID,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
@@ -26,6 +28,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      testID={testID}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}

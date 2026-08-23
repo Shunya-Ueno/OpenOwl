@@ -53,7 +53,8 @@ export class DeepSeekClient {
     for (let attempt = 0; attempt <= 1; attempt++) {
       const remainingMs = deadlineAt - Date.now();
       if (remainingMs <= 0) {
-        throw lastError ?? new UpstreamTimeoutError('deepseek request timed out before first attempt');
+        throw lastError ??
+          new UpstreamTimeoutError('deepseek request timed out before first attempt');
       }
 
       try {

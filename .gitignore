@@ -28,6 +28,12 @@ backend/supabase/.temp/
 # --- vercel ---
 .vercel/
 
+# --- e2e ---
+playwright-report/
+test-results/
+.maestro/
+blob-report/
+
 # --- tooling / editors ---
 .DS_Store
 Thumbs.db

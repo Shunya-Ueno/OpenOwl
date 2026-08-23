@@ -16,6 +16,7 @@
 | `llm-integration.md` | DeepSeek 連携設計。モデル選定理由、プロンプト設計、クラス設計、リトライ / フォールバック | バックエンド | 2 |
 | `security.md` | シークレット管理、RLS 方針、認可境界、入力バリデーション | 全員 | 2 |
 | `frontend-design.md` | 画面構成と遷移、ディレクトリ構造、状態管理、API アクセス層、Web/PWA 対応、プラットフォーム差異 | フロントエンド | 4 |
+| `testing-ci.md` | テスト戦略（モック禁止下での層の切り分け）、E2E ツール選定、GitHub Actions パイプライン、CI のシークレット管理 | 全員 | 6 |
 | `roadmap.md` | フェーズ計画と将来機能のスコープ境界 | 全員 | 0 |
 | `adr/` | Architecture Decision Record。「なぜその選択をしたか」の記録 | 全員 | 1 以降 |
 
@@ -53,6 +54,7 @@
 4. `db-schema.md` → `api-spec.md` → `llm-integration.md`（バックエンドの詳細）
 5. `security.md`（触る前に必ず）
 6. `frontend-design.md`（フロントエンドを触るなら）
+7. `testing-ci.md`（テストを書く / CI を触るなら）
 
 ## ADR 一覧
 
@@ -71,3 +73,6 @@
 | [0011](./adr/0011-fetch-over-functions-invoke.md) | Edge Function の呼び出しに `functions.invoke` ではなく `fetch` を使う | 4 |
 | [0012](./adr/0012-generation-as-mutation.md) | 類義語生成は mutation として扱い、URL 直接アクセスでは再生成しない | 4 |
 | [0013](./adr/0013-chunked-securestore-session.md) | ネイティブのセッション永続化に分割 SecureStore アダプタを使う | 4 |
+| [0014](./adr/0014-playwright-and-maestro-over-detox.md) | E2E は Web を Playwright、iOS を Maestro で書き、Detox を採用しない | 6 |
+| [0015](./adr/0015-production-deploy-gated-on-backend.md) | 本番のフロントエンドデプロイをバックエンドデプロイの後段に置く | 6 |
+| [0016](./adr/0016-unit-tests-limited-to-pure-logic.md) | 単体テストは純粋ロジックに限り、コンポーネントテストを書かない | 6 |

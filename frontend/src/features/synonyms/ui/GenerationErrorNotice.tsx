@@ -4,6 +4,7 @@ import { Card } from '../../../shared/ui/Card';
 import { Banner } from '../../../shared/ui/Banner';
 import { Button } from '../../../shared/ui/Button';
 import { spacing } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 import { ApiError } from '../../../shared/api/ApiError';
 
 interface GenerationErrorNoticeProps {
@@ -35,13 +36,14 @@ export function GenerationErrorNotice({ error, onRetry }: GenerationErrorNoticeP
   const isCountingDown = error.code === 'rate_limited' && remainingSeconds > 0;
 
   return (
-    <Card>
+    <Card testID={testIds.generationError.root}>
       <Banner tone={error.code === 'invalid_request' ? 'warning' : 'danger'} message={error.userMessage} />
       {error.code === 'rate_limited' ? (
         <Banner tone="info" message="保存済みの履歴はいつでも見返せます。" />
       ) : null}
       <View style={styles.actions}>
         <Button
+          testID={testIds.generationError.retry}
           label={isCountingDown ? `${remainingSeconds}秒後に再試行できます` : '再試行'}
           onPress={onRetry}
           disabled={isCountingDown}

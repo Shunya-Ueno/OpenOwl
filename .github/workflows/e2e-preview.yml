@@ -1,0 +1,68 @@
+# Vercel プレビューに対するスモーク。設計は docs/testing-ci.md 7.1。
+#
+# ci.yml の e2e-web は dist/ をローカル配信するため、vercel.json のリライトや
+# セキュリティヘッダは検証できない。それを見るのがこのワークフローの役割。
+#
+# **生成は行わない。** プレビューはデプロイのたびに走るので、
+# ここで DeepSeek を叩くとデプロイ回数に比例して課金される。
+
+name: E2E (Vercel preview)
+
+on:
+  deployment_status:
+
+concurrency:
+  group: e2e-shared-test-account
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: preview smoke
+    # Vercel がデプロイ成功を通知したときだけ走らせる。
+    # environment は Vercel が "Preview" / "Production" を入れる。
+    # 本番は deploy.yml が別途扱うので、ここでは Preview に限定する。
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment_url != '' &&
+      contains(github.event.deployment_status.environment, 'Preview')
+    runs-on: ubuntu-latest
+    environment: e2e
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # deployment_status はデフォルトブランチを指すことがあるため、
+          # デプロイ対象のコミットを明示的に取り出す。
+          ref: ${{ github.event.deployment.sha }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Smoke test against the preview URL
+        env:
+          E2E_BASE_URL: ${{ github.event.deployment_status.environment_url }}
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: npm run e2e:preview
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-preview
+          path: frontend/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore

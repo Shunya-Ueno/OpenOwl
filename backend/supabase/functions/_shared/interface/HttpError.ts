@@ -1,12 +1,12 @@
 import {
   DomainError,
   InvalidWordError,
-  UnauthorizedError,
   RateLimitExceededError,
+  UnauthorizedError,
+  UpstreamInvalidResponseError,
   UpstreamRateLimitedError,
   UpstreamTimeoutError,
   UpstreamUnavailableError,
-  UpstreamInvalidResponseError,
 } from '../domain/errors.ts';
 
 // docs/api-spec.md 2.5 のエラーコード一覧に対応する、例外 → HTTP の唯一の写像先。
@@ -66,8 +66,6 @@ function build(status: number, code: string, retryAfterSeconds?: number): Mapped
     },
     // docs/api-spec.md 3.3: 429 には Retry-After ヘッダも併せて返す(本文の
     // フィールドだけでは標準の HTTP クライアント/プロキシが解釈できない)。
-    headers: retryAfterSeconds !== undefined
-      ? { 'retry-after': String(retryAfterSeconds) }
-      : {},
+    headers: retryAfterSeconds !== undefined ? { 'retry-after': String(retryAfterSeconds) } : {},
   };
 }

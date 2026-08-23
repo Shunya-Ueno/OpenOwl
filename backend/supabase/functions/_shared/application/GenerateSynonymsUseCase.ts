@@ -2,7 +2,7 @@ import { Term } from '../domain/Term.ts';
 import { SynonymGeneration } from '../domain/SynonymGeneration.ts';
 import type { Synonym } from '../domain/Synonym.ts';
 import type { SynonymProvider } from '../domain/ports/SynonymProvider.ts';
-import type { TermRepository, ResolvedTerm } from '../domain/ports/TermRepository.ts';
+import type { ResolvedTerm, TermRepository } from '../domain/ports/TermRepository.ts';
 import type { SynonymGenerationRepository } from '../domain/ports/SynonymGenerationRepository.ts';
 import type { LookupRepository } from '../domain/ports/LookupRepository.ts';
 import type { RateLimiter } from '../domain/ports/RateLimiter.ts';
@@ -47,9 +47,11 @@ export class GenerateSynonymsUseCase {
     const resolvedTerm = await this.terms.findOrCreate(term);
 
     // 7. キャッシュ検索(常に最新を1件取得し、新鮮判定は呼び出し側で行う)
-    const latest = command.forceRefresh
-      ? null
-      : await this.generations.findLatest(resolvedTerm, this.provider.model, this.provider.promptVersion);
+    const latest = command.forceRefresh ? null : await this.generations.findLatest(
+      resolvedTerm,
+      this.provider.model,
+      this.provider.promptVersion,
+    );
 
     if (latest && latest.isFreshAt(new Date(), this.cacheTtlDays)) {
       await this.lookups.recordCacheHit(command.userId, resolvedTerm.id, latest.id);
@@ -61,9 +63,14 @@ export class GenerateSynonymsUseCase {
     }
 
     // 縮退応答用に、forceRefresh でも直近の生成(TTL切れ含む)を把握しておく。
-    const fallbackCandidate = latest ?? (command.forceRefresh
-      ? await this.generations.findLatest(resolvedTerm, this.provider.model, this.provider.promptVersion)
-      : null);
+    const fallbackCandidate = latest ??
+      (command.forceRefresh
+        ? await this.generations.findLatest(
+          resolvedTerm,
+          this.provider.model,
+          this.provider.promptVersion,
+        )
+        : null);
 
     // 8. DeepSeek 呼び出し
     let generated;

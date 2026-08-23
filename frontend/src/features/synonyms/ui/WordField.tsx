@@ -2,6 +2,7 @@ import { View, StyleSheet } from 'react-native';
 import { TextField } from '../../../shared/ui/TextField';
 import { Button } from '../../../shared/ui/Button';
 import { spacing } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 
 interface WordFieldProps {
   readonly value: string;
@@ -15,6 +16,7 @@ export function WordField({ value, onChangeText, onSubmit, submitting, errorMess
   return (
     <View style={styles.container}>
       <TextField
+        testID={testIds.home.wordInput}
         label="英単語"
         placeholder="例: improve"
         value={value}
@@ -26,7 +28,7 @@ export function WordField({ value, onChangeText, onSubmit, submitting, errorMess
         onSubmitEditing={onSubmit}
         editable={!submitting}
       />
-      <Button label="類義語を生成" onPress={onSubmit} loading={submitting} />
+      <Button testID={testIds.home.generate} label="類義語を生成" onPress={onSubmit} loading={submitting} />
     </View>
   );
 }

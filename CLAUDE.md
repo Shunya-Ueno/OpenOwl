@@ -24,7 +24,9 @@ OpenOwl は英単語の類義語生成を軸にした外国語学習アプリ。
 | API | Supabase Edge Functions (Deno + TypeScript) |
 | LLM | DeepSeek API (`deepseek-chat`) |
 | Web/PWA 配信 | Vercel |
-| CI | GitHub Actions（フェーズ 6） |
+| 単体テスト | Deno 内蔵 `Deno.test` + `node:assert`（backend） / Vitest（frontend） |
+| E2E | Playwright（Web・PR のゲート） / Maestro（iOS・週次） |
+| CI | GitHub Actions |
 
 ## ディレクトリ構造
 
@@ -37,10 +39,13 @@ OpenOwl/
 │       ├── config.toml
 │       ├── migrations/         # <timestamp>_<snake_case>.sql
 │       └── functions/
-│           ├── _shared/        # 複数関数で共有するレイヤー
+│           ├── _shared/        # 複数関数で共有するレイヤー（*.test.ts を併置）
 │           └── synonyms/       # 類義語生成エンドポイント
-├── frontend/                   # Expo アプリ（フェーズ 5 で作成）
-└── .github/workflows/          # CI（フェーズ 6 で作成）
+├── frontend/                   # Expo アプリ
+│   ├── app/                    # Expo Router の画面
+│   ├── src/                    # features/ と shared/（*.test.ts を併置）
+│   └── e2e/                    # web/(Playwright) preview/ maestro/
+└── .github/workflows/          # ci.yml / deploy.yml / e2e-preview.yml / e2e-ios.yml
 ```
 
 ## 開発コマンド
@@ -60,7 +65,13 @@ deno check supabase/functions/**/*.ts        # 型チェック
 deno fmt && deno lint                        # 整形・静的解析
 ```
 
-### frontend（フェーズ 5 以降）
+```bash
+cd backend/supabase/functions
+deno task check                              # fmt --check + lint + 型チェック（CI と同じ）
+deno task test                               # 単体テスト
+```
+
+### frontend
 
 ```bash
 cd frontend
@@ -71,7 +82,12 @@ npm run web            # Web
 npm run build:web      # 静的エクスポート → dist/
 npm run typecheck      # tsc --noEmit
 npm run lint           # ESLint
+npm run test           # 単体テスト（Vitest / 純粋ロジックのみ）
+npm run e2e            # Web の E2E（要 build:web + E2E アカウント）
+npm run e2e:ui         # 同上・対話モード
 ```
+
+iOS ネイティブの E2E は `frontend/e2e/maestro/README.md` を参照。
 
 ## コーディング規約
 
@@ -96,11 +112,31 @@ npm run lint           # ESLint
   実装・テストとも実際の Supabase / DeepSeek に接続する。
   レイヤー分離のための `interface` は**テストダブル差し替えのためではなく**、
   依存方向の制御と将来の LLM プロバイダ差し替えのために存在する。
+  具体的に禁止されるもの: `vi.mock` / `vi.fn`、ポートの偽実装、
+  `fetch` や Supabase クライアントの差し替え、Playwright の `page.route()` による
+  レスポンス偽装、`@testing-library/react-native`（レンダラが実物ではない）。
 - **秘密情報をリポジトリへコミットしない**。`.env*` は `.gitignore` 済み。
   API キーらしき文字列をコードに書かない。
 - **DeepSeek をクライアントから直接呼ばない**。必ず Edge Functions を経由する。
 - **RLS を無効化しない**。`service_role` キーはフロントエンドで使わない。
 - **デスクトップ幅向けの分岐実装をしない**（後述）。
+
+## テストの書き方
+
+正典は `docs/testing-ci.md`。モック禁止が層の切り分けを決めている。
+
+- **単体テストは外部 I/O を持たない純粋ロジックだけに書く**（ADR-0016）。
+  正規化規則、バリデーション、エラー → HTTP の写像、プロンプト組み立て、パース処理。
+  リポジトリ実装・ユースケース・コンポーネントには単体テストを書かない。
+- **それ以外の正しさは E2E が担保する。** したがって
+  **E2E を落としたまま放置しない**。E2E がこの構成の唯一の安全網である。
+- 新しいロジックは、**純粋な関数 / クラスに切り出せばテストできる層に移る**。
+  迷ったら切り出す方向に倒す。
+- E2E のセレクタは `frontend/src/shared/testIds.ts` の `testID` に一本化する。
+  **表示文言でセレクタを書かない**（文言は変わり、エラーメッセージはサーバー由来）。
+- E2E で **DeepSeek を叩くスペックを増やさない**。生成を伴わずに検証できることは
+  生成なしで検証する。実生成は日次のスケジュール実行だけに留める（`docs/testing-ci.md` §6.5）。
+- カバレッジ閾値は設けない。数字のためのテストを誘発するため。
 
 ## UI / 画面幅の前提
 
@@ -146,6 +182,10 @@ npm run lint           # ESLint
   API Routes / Vercel Edge Functions / Serverless Functions は**採用しない**。
   バックエンドは Supabase Edge Functions に一本化する。
 - Vercel の Root Directory は `frontend`、ビルド成果物は `dist`。
+- **`main` に対する Vercel の自動デプロイは無効化してある**（`frontend/vercel.json` の
+  `git.deploymentEnabled`）。本番フロントエンドは `.github/workflows/deploy.yml` が
+  Supabase のデプロイ完了後に Deploy Hook で起動する。`docs/deployment.md` §4 の
+  順序制約を守るため（ADR-0015）。この設定を勝手に戻さない。
 - `EXPO_PUBLIC_` 接頭辞の環境変数は **JS バンドルに埋め込まれ公開される**。
   秘密情報を置かない。
 - Preview デプロイはテスト用 Supabase プロジェクトを向ける。

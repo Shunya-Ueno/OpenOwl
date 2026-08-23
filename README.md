@@ -8,9 +8,13 @@ iOS ネイティブアプリを主戦場としつつ、同一コードベース�
 - LLM: DeepSeek API（Edge Functions からのみ呼び出す）
 - Web/PWA ホスティング: Vercel（フロント配信のみ）
 
-> **現在の状態: バックエンド実装（フェーズ 3）とフロントエンド設計（フェーズ 4）まで完了。**
-> `backend/` は実装済み。`frontend/` の実装はフェーズ 5 で行う。本 README は「今できること」を書いたもので、
-> 実装フェーズの進行に合わせて更新される。設計の全体像は [`docs/`](./docs/README.md) を参照。
+> **現在の状態: フェーズ 6（E2E / CI / デプロイ）まで完了。MVP の実装は一通り揃っている。**
+> `backend/`・`frontend/`・`.github/workflows/` がすべて実装済み。
+> 設計の全体像は [`docs/`](./docs/README.md) を参照。
+>
+> ただし**外部サービス側の設定（下記「外部サービスの準備」と
+> [`docs/deployment.md`](./docs/deployment.md) §5.2）は人手で行う必要がある**。
+> これらが未設定だと CI とデプロイは動かない。
 
 ## ドキュメント
 
@@ -24,6 +28,7 @@ iOS ネイティブアプリを主戦場としつつ、同一コードベース�
 | [docs/llm-integration.md](./docs/llm-integration.md) | DeepSeek 連携設計 |
 | [docs/security.md](./docs/security.md) | シークレット管理・認可境界 |
 | [docs/frontend-design.md](./docs/frontend-design.md) | 画面構成・状態管理・ディレクトリ構造・Web/PWA 対応 |
+| [docs/testing-ci.md](./docs/testing-ci.md) | テスト戦略・E2E ツール選定・GitHub Actions・CI のシークレット管理 |
 | [docs/deployment.md](./docs/deployment.md) | Vercel / Supabase デプロイ構成 |
 | [CLAUDE.md](./CLAUDE.md) | AI エージェント向けのプロジェクト規約 |
 
@@ -35,13 +40,16 @@ OpenOwl/
 ├── CLAUDE.md                  # AI エージェント向け規約
 ├── docs/                      # 設計ドキュメント
 │   └── adr/                   # Architecture Decision Record
-├── backend/                   # Supabase（フェーズ 3 で作成）
+├── backend/                   # Supabase
 │   └── supabase/
 │       ├── config.toml
 │       ├── migrations/        # SQL マイグレーション
-│       └── functions/         # Edge Functions (Deno)
-├── frontend/                  # Expo アプリ（フェーズ 5 で作成）
-└── .github/workflows/         # CI（フェーズ 6 で作成）
+│       └── functions/         # Edge Functions (Deno) + 単体テスト
+├── frontend/                  # Expo アプリ
+│   ├── app/                   # Expo Router の画面
+│   ├── src/                   # features/ と shared/
+│   └── e2e/                   # Playwright（Web）+ Maestro（iOS）
+└── .github/workflows/         # CI / デプロイ
 ```
 
 詳細は [docs/repository-structure.md](./docs/repository-structure.md)。
@@ -79,6 +87,11 @@ cd OpenOwl
 | 4 | Google Cloud Console | OAuth クライアント ID を Web 用 / iOS 用に発行 | Google ログイン |
 | 5 | Apple Developer Program | App ID / Service ID / Sign in with Apple キー発行（**年会費が発生**） | Apple ログイン（iOS 審査要件） |
 | 6 | Vercel | プロジェクト作成、GitHub リポジトリ連携 | Web/PWA 配信 |
+| 7 | Vercel | **本番ブランチ向けの Deploy Hook 作成** | 本番デプロイの起動（[ADR-0015](./docs/adr/0015-production-deploy-gated-on-backend.md)） |
+| 8 | Supabase（テスト） | **E2E 専用アカウントを 1 つ作成**（メール確認まで） | E2E のサインイン。CI に `service_role` を置かないため |
+| 9 | GitHub | Environments / Variables / Secrets の登録 | CI とデプロイの実行 |
+
+7〜9 の詳細は [docs/deployment.md](./docs/deployment.md) §5.2 にある表を参照。
 
 ### 2. 環境変数
 
@@ -130,7 +143,7 @@ EXPO_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
 EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-## 開発コマンド（フェーズ 3 以降で有効）
+## 開発コマンド
 
 ```bash
 # --- backend ---
@@ -140,6 +153,10 @@ supabase db push                            # マイグレーション適用
 supabase functions deploy synonyms          # Edge Function デプロイ
 supabase functions logs synonyms            # 実行ログ
 
+cd backend/supabase/functions
+deno task check        # fmt --check + lint + 型チェック
+deno task test         # 単体テスト（純粋ロジックのみ）
+
 # --- frontend ---
 cd frontend
 npm install
@@ -148,15 +165,20 @@ npm run web            # Web のみ
 npm run build:web      # 静的エクスポート → dist/
 npm run typecheck
 npm run lint
+npm run test           # 単体テスト（Vitest）
+npm run e2e            # Web の E2E（Playwright）※ build:web と E2E 用アカウントが必要
 ```
 
 コマンドの正典は [CLAUDE.md](./CLAUDE.md) に置く。
+テストの回し方と前提は [docs/testing-ci.md](./docs/testing-ci.md) §8。
 
 ## 設計上の重要な前提
 
 - **UI はモバイル幅（〜480px）専用**。デスクトップ幅向けのレイアウト最適化は行わない。
 - **バックエンドは Supabase Edge Functions に一本化**。Vercel はフロント配信のみで、API を持たない。
 - **モック禁止**。開発・テストとも実際の Supabase / DeepSeek に接続する。
+  この制約から、単体テストは外部 I/O を持たない純粋ロジックのみを対象とし、
+  それ以外は実サービスに対する E2E が担う（[docs/testing-ci.md](./docs/testing-ci.md)）。
 - **DeepSeek API キーはサーバー側のみ**。クライアントから DeepSeek を直接叩く実装は行わない。
 
 ## ライセンス

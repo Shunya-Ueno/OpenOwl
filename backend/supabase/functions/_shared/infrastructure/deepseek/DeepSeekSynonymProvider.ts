@@ -1,7 +1,7 @@
 import type {
-  SynonymProvider,
-  GenerateInput,
   GeneratedSynonyms,
+  GenerateInput,
+  SynonymProvider,
 } from '../../domain/ports/SynonymProvider.ts';
 import { Synonym } from '../../domain/Synonym.ts';
 import { UpstreamInvalidResponseError } from '../../domain/errors.ts';

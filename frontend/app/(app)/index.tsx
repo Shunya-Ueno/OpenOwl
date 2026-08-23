@@ -13,6 +13,7 @@ import { ApiError } from '../../src/shared/api/ApiError';
 import { handleUnauthorizedError } from '../../src/shared/api/handleUnauthorizedError';
 import { Banner } from '../../src/shared/ui/Banner';
 import { colors, spacing, typography } from '../../src/shared/theme/tokens';
+import { testIds } from '../../src/shared/testIds';
 
 const RECENT_HISTORY_COUNT = 5;
 
@@ -66,7 +67,7 @@ export default function HomeScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
-        <Text style={styles.title} accessibilityRole="header">
+        <Text style={styles.title} accessibilityRole="header" testID={testIds.home.title}>
           OpenOwl
         </Text>
         <Link href="/settings" style={styles.headerLink}>
@@ -74,7 +75,9 @@ export default function HomeScreen() {
         </Link>
       </View>
 
-      {noticeMessage ? <Banner tone="info" message={noticeMessage} /> : null}
+      {noticeMessage ? (
+        <Banner tone="info" message={noticeMessage} testID={testIds.home.notice} />
+      ) : null}
 
       <WordField
         value={word}
@@ -101,6 +104,7 @@ export default function HomeScreen() {
 
         {recentLookups.length === 0 ? (
           <EmptyState
+            testID={testIds.home.historyEmpty}
             title="まだ履歴がありません"
             description="単語を入力して類義語を生成してみましょう。"
           />

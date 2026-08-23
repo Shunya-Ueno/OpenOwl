@@ -2,11 +2,12 @@
 
 デプロイ先は 2 つあり、**互いに独立してデプロイできる**。
 
-| 対象 | デプロイ先 | トリガー（フェーズ 6 で自動化） |
+| 対象 | デプロイ先 | トリガー |
 | --- | --- | --- |
-| `frontend/`（Web/PWA） | Vercel | GitHub push（`main` → 本番 / PR → プレビュー） |
-| `frontend/`（iOS） | App Store（EAS Build / Submit） | 手動 or タグ |
-| `backend/`（マイグレーション + Edge Functions） | Supabase | `main` への push（当面は手動） |
+| `frontend/`（Web/PWA・プレビュー） | Vercel | PR ブランチへの push（Vercel の Git 連携） |
+| `frontend/`（Web/PWA・本番） | Vercel | `main` への push → **`deploy.yml` 経由**（§5.1） |
+| `frontend/`（iOS） | App Store（EAS Build / Submit） | 手動 |
+| `backend/`（マイグレーション + Edge Functions） | Supabase | `main` への push（`deploy.yml`） |
 
 ## 1. Vercel（Web / PWA）
 
@@ -184,9 +185,9 @@ Redirect URLs（Authentication → URL Configuration）:
 
 **どこに置くかで公開範囲が決まる。** この表が正典。
 
-| 変数 | Supabase Secrets<br/>(Edge Functions) | Vercel<br/>(Production/Preview) | ローカル `.env.local` | GitHub Actions Secrets | 公開されるか |
+| 変数 | Supabase Secrets<br/>(Edge Functions) | Vercel<br/>(Production/Preview) | ローカル `.env.local` | GitHub Actions | 公開されるか |
 | --- | :---: | :---: | :---: | :---: | --- |
-| `DEEPSEEK_API_KEY` | ✅ | ❌ **禁止** | ❌ **禁止** | ✅（テスト用キー） | 非公開 |
+| `DEEPSEEK_API_KEY` | ✅ | ❌ **禁止** | ❌ **禁止** | ❌ **不要**（§3.1） | 非公開 |
 | `DEEPSEEK_BASE_URL` | ✅ | ❌ | ❌ | — | 非公開 |
 | `DEEPSEEK_MODEL` | ✅ | ❌ | ❌ | — | 非公開 |
 | `DEEPSEEK_TIMEOUT_MS` | ✅ | ❌ | ❌ | — | 非公開 |
@@ -195,11 +196,31 @@ Redirect URLs（Authentication → URL Configuration）:
 | `ALLOWED_ORIGINS` | ✅ | ❌ | ❌ | — | 非公開 |
 | `SUPABASE_URL` | 自動注入 | — | — | — | — |
 | `SUPABASE_SERVICE_ROLE_KEY` | 自動注入 | ❌ **禁止** | ❌ **禁止** | ❌ **禁止** | 非公開 |
-| `EXPO_PUBLIC_SUPABASE_URL` | — | ✅ | ✅ | ✅ | **公開**（バンドルに埋め込まれる） |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | — | ✅ | ✅ | ✅ | **公開**（保護は RLS が担う） |
-| `SUPABASE_ACCESS_TOKEN` | — | ❌ | — | ✅（CI からのデプロイ用） | 非公開 |
+| `EXPO_PUBLIC_SUPABASE_URL` | — | ✅ | ✅ | ✅ **Variables** | **公開**（バンドルに埋め込まれる） |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | — | ✅ | ✅ | ✅ **Variables** | **公開**（保護は RLS が担う） |
+| `SUPABASE_PROJECT_REF_PROD` | — | ❌ | — | ✅ **Variables** | 非公開だが秘密ではない |
+| `SUPABASE_ACCESS_TOKEN` | — | ❌ | — | ✅ **Secrets** | 非公開 |
+| `VERCEL_DEPLOY_HOOK_URL` | — | ❌ | — | ✅ **Secrets** | 非公開（URL を知る者は誰でもデプロイを起動できる） |
+| `E2E_USER_EMAIL` | — | ❌ | 任意（ローカル E2E 用） | ✅ **Secrets** | 非公開 |
+| `E2E_USER_PASSWORD` | — | ❌ | 任意（ローカル E2E 用） | ✅ **Secrets** | 非公開 |
 
 「自動注入」は Edge Functions 実行環境が既定で提供するもので、手動設定しない。
+
+### 3.1 フェーズ 6 で確定した 2 点
+
+**(a) CI に `DEEPSEEK_API_KEY` を置かない。**
+当初はテスト用キーを GitHub Actions に置く想定だったが、実際のパイプラインでは不要だった。
+E2E はブラウザから Edge Function を叩き、DeepSeek は**テスト用プロジェクトの
+Edge Function が自分の Secrets を使って**呼ぶ。CI のプロセスが DeepSeek を直接叩く経路は
+存在しない。Function のデプロイにもこのキーは要らない。
+漏洩面を減らせるので、置かないことを設計として固定する。
+
+**(b) `EXPO_PUBLIC_*` は Secrets ではなく Variables に置く。**
+これらはビルド時に JS バンドルへ埋め込まれ誰でも読める値
+（[security.md](./security.md) §2.2）。Secrets に入れるとログ中でマスクされ、
+デバッグしづらくなるうえ「秘密である」という誤解を生む。
+
+詳細は [testing-ci.md](./testing-ci.md) §6。
 
 ## 4. デプロイ順序の制約
 
@@ -214,12 +235,55 @@ Redirect URLs（Authentication → URL Configuration）:
 新フロント + 旧バックエンドの組み合わせが発生する。
 破壊的なスキーマ変更（列削除など）は、フロントの旧版が消えるまで 1 リリース遅らせる。
 
-## 5. 将来（フェーズ 6）の自動化方針
+## 5. 自動化（フェーズ 6 で実装済み）
 
-ここでは方針のみ記録し、実装はフェーズ 6 で行う。
+設計の全体像は [testing-ci.md](./testing-ci.md)。ここではデプロイに関わる部分だけを示す。
 
-- **Vercel**: GitHub 連携による自動デプロイ（追加の workflow 不要）。
-- **Supabase**: GitHub Actions で `main` への push 時に `supabase db push` と
-  `supabase functions deploy` を実行。認証は `SUPABASE_ACCESS_TOKEN`。
-- **PR チェック**: lint → typecheck → E2E（テスト用 Supabase に対して実行）。
-- **iOS**: EAS Build / Submit。手動トリガーから始める。
+| ワークフロー | トリガー | 役割 |
+| --- | --- | --- |
+| `.github/workflows/ci.yml` | PR / `main` への push / 日次 | lint・typecheck・単体・ビルド・Web E2E |
+| `.github/workflows/deploy.yml` | `main` への push / 手動 | **Supabase → Vercel 本番**の順にデプロイ |
+| `.github/workflows/e2e-preview.yml` | Vercel のプレビュー成功 | プレビュー URL に対するスモーク |
+| `.github/workflows/e2e-ios.yml` | 週次 / 手動 | Maestro による iOS E2E |
+
+### 5.1 本番デプロイは §4 の順序制約に従う
+
+**Vercel の GitHub 連携は `main` に対して無効化してある**（`frontend/vercel.json` の
+`git.deploymentEnabled`）。有効なままだと push した瞬間にフロントエンドが出てしまい、
+§4 の順序（マイグレーション → Function → フロントエンド）が破れるためである
+（[ADR-0015](./adr/0015-production-deploy-gated-on-backend.md)）。
+
+```
+push: main
+   └─▶ deploy.yml
+         job: backend （environment: production）
+           1. supabase db push
+           2. supabase functions deploy synonyms
+         job: frontend （needs: backend）
+           3. Vercel Deploy Hook を POST
+```
+
+**プレビューは従来どおり Vercel の Git 連携に任せる**（PR ブランチの自動デプロイは
+無効化しない）。プレビューには旧版の PWA 利用者が存在せず、この制約が当てはまらないため。
+
+### 5.2 人手が必要な設定（フェーズ 6 の前提）
+
+以下はダッシュボードでの操作が必要で、**未設定だとパイプラインが動かない**。
+
+| # | どこで | 作業 | 未設定だとどうなるか |
+| --- | --- | --- | --- |
+| 1 | Vercel | 本番ブランチ向けの **Deploy Hook** を作成し、URL を GitHub Secrets の `VERCEL_DEPLOY_HOOK_URL` へ登録 | **本番フロントエンドが誰もデプロイできなくなる**（`vercel.json` で自動デプロイを切っているため）。`deploy.yml` は明示的なエラーで落ちる |
+| 2 | GitHub | Environment `production` と `e2e` を作成 | ジョブが起動できない。`production` に承認レビューを付けるかは任意 |
+| 3 | GitHub | Variables に `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（**テスト用**プロジェクトの値）/ `SUPABASE_PROJECT_REF_PROD` を登録 | E2E 用ビルドが接続先を持たない |
+| 4 | GitHub | Secrets に `SUPABASE_ACCESS_TOKEN` を登録 | `deploy.yml` が Supabase に認証できない |
+| 5 | Supabase（テスト） | **E2E 専用アカウントを 1 つ作成**し、メール確認を済ませる。資格情報を Secrets の `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` へ登録 | E2E がサインインできない |
+
+**5 について**: CI からユーザーを作らないのは、`service_role` キーを GitHub Actions に
+置くことを [security.md](./security.md) §2.2 が禁じているため。
+手で作ったアカウントに anon キーでサインインすることで、
+CI が持つ権限を「ふつうのユーザー 1 人分」に留められる（[testing-ci.md](./testing-ci.md) §6.3）。
+
+### 5.3 iOS
+
+EAS Build / Submit は引き続き手動。フェーズ 6 では自動化しない
+（App Store 提出はリリース判断を伴うため、パイプラインに載せる価値が薄い）。

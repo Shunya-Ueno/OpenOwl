@@ -6,15 +6,16 @@ type Tone = 'info' | 'warning' | 'danger';
 interface BannerProps {
   readonly tone: Tone;
   readonly message: string;
+  readonly testID?: string;
 }
 
 /**
  * 画面上部に出す一時的な通知。色だけで状態を表さない
  * (docs/frontend-design.md 11.3: 色だけで状態を表さない)。
  */
-export function Banner({ tone, message }: BannerProps) {
+export function Banner({ tone, message, testID }: BannerProps) {
   return (
-    <View style={[styles.base, toneStyles[tone]]} accessibilityLiveRegion="polite">
+    <View style={[styles.base, toneStyles[tone]]} accessibilityLiveRegion="polite" testID={testID}>
       <Text style={styles.icon}>{toneIcon[tone]}</Text>
       <Text style={styles.text}>{message}</Text>
     </View>

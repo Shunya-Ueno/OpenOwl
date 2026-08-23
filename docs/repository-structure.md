@@ -43,19 +43,33 @@ OpenOwl/
 │   └── README.md                          # backend 固有の手順
 │
 ├── frontend/                              # ── フェーズ 5 で作成 ──
-│   ├── app.json / app.config.ts           # Expo 設定
+│   ├── app.json                           # Expo 設定
 │   ├── package.json
 │   ├── tsconfig.json
 │   ├── app/                               # Expo Router のルート定義（画面）
 │   ├── src/
 │   │   ├── features/                      # 機能単位（auth / synonyms / history / profile）
+│   │   │   └── **/*.test.ts               # 単体テスト（純粋ロジックのみ・ADR-0016）
 │   │   └── shared/                        # supabase クライアント、api、query、ui、theme
+│   │       └── testIds.ts                 # E2E セレクタの唯一の置き場所
+│   ├── e2e/                               # ── フェーズ 6 で作成 ──
+│   │   ├── web/                           # Playwright（PR のゲート）
+│   │   ├── preview/                       # Vercel プレビューへのスモーク
+│   │   ├── maestro/                       # Maestro（iOS ネイティブ）
+│   │   └── serve-dist.mjs                 # dist/ を配信する依存ゼロの静的サーバー
+│   ├── playwright.config.ts
+│   ├── playwright.preview.config.ts
+│   ├── vitest.config.ts
 │   ├── public/                            # Web 専用の静的ファイル
 │   │   ├── manifest.webmanifest
 │   │   └── sw.js
-│   └── vercel.json                        # SPA フォールバック / ヘッダ
+│   └── vercel.json                        # SPA フォールバック / ヘッダ / 本番自動デプロイの無効化
 │
 └── .github/workflows/                     # ── フェーズ 6 で作成 ──
+    ├── ci.yml                             # lint / typecheck / 単体 / ビルド / Web E2E
+    ├── deploy.yml                         # Supabase → Vercel 本番（順序を保証）
+    ├── e2e-preview.yml                    # プレビューへのスモーク
+    └── e2e-ios.yml                        # Maestro（週次 / 手動）
 ```
 
 > **注**: `frontend/src/` の内訳は当初この場所で層優先（`domain` / `application` /
@@ -63,8 +77,10 @@ OpenOwl/
 > （[ADR-0010](./adr/0010-feature-based-frontend-structure.md)）。
 > 正典は [`frontend-design.md`](./frontend-design.md) §4。
 
-**現時点（フェーズ 4 完了時）で存在するのは `docs/` と `backend/` および直下のファイル。**
-空ディレクトリを先に作らない方針とする（存在＝中身がある、を保つため）。
+テストの配置とツール選定の理由は [`testing-ci.md`](./testing-ci.md) を参照。
+単体テストをソースと同じ場所に置くのは、対象が純粋ロジックに限られており
+（[ADR-0016](./adr/0016-unit-tests-limited-to-pure-logic.md)）、
+feature の凝集を崩さない方が探しやすいため。
 
 ### `backend/supabase/` という二重の階層について
 
@@ -165,7 +181,28 @@ frontend / backend の両方から参照する。ディレクトリ位置は上�
 | --- | --- | --- |
 | `zod` | 入力バリデーション / API レスポンス検証 | Edge Function 側でも同じライブラリを使い、検証の書き方をプロジェクト全体で統一する |
 | `expo-constants` | 環境変数 / アプリ設定の参照 | `EXPO_PUBLIC_*` の読み出し |
-| `eslint` + `eslint-config-expo` + `prettier` | 静的解析・整形 | Expo 公式構成に従う |
+| `eslint` + `eslint-config-expo` | 静的解析 | Expo 公式構成に従う |
+
+### 3.6 テスト（フェーズ 6 で導入）
+
+| パッケージ | 用途 | 選定理由 |
+| --- | --- | --- |
+| `vitest` | 単体テスト（純粋ロジックのみ） | 設定なしで TypeScript がそのまま動く。jsdom も React のレンダラも入れない（[ADR-0016](./adr/0016-unit-tests-limited-to-pure-logic.md)） |
+| `@playwright/test` | Web の E2E | 実ブラウザで `expo export` の出力そのものを動かせる。Linux ランナーで安く速い（[ADR-0014](./adr/0014-playwright-and-maestro-over-detox.md)） |
+| Maestro（npm 依存ではない） | iOS ネイティブの E2E | 出荷するのと同じ `.app` をそのまま操作できる。YAML なので RN のバージョン追従が要らない |
+
+**採用しないもの**:
+
+- `@testing-library/react-native` … レンダラを差し替える時点で実物ではない。
+  画面の挙動は Playwright が実ブラウザで検証する（ADR-0016）。
+- Detox … テスト用ライブラリをリンクしたバイナリは出荷するバイナリと別物（ADR-0014）。
+- モックライブラリ全般（`vi.mock` の使用を含む） … プロジェクト方針で禁止。
+- 静的サーバーのパッケージ（`serve` 等） … E2E 用に `dist/` を配信するだけなので、
+  依存ゼロの Node スクリプト（`e2e/serve-dist.mjs`）で足りる。
+
+バックエンド（Deno）側は**テスト用の依存を一切追加しない**。
+ランナーは Deno 内蔵の `Deno.test`、アサーションは `node:assert/strict` を使う。
+`jsr:@std/assert` を入れないのは、backend の依存を §4 の 2 つに保つため。
 
 **採用しないもの**:
 

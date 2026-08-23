@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types.ts';
-import type { TermRepository, ResolvedTerm } from '../../domain/ports/TermRepository.ts';
+import type { ResolvedTerm, TermRepository } from '../../domain/ports/TermRepository.ts';
 import type { Term } from '../../domain/Term.ts';
 import { InternalDomainError } from '../../domain/errors.ts';
 
@@ -16,7 +16,10 @@ export class SupabaseTermRepository implements TermRepository {
     });
 
     if (error || !data) {
-      throw new InternalDomainError(`failed to resolve term: ${error?.message ?? 'no row returned'}`, error);
+      throw new InternalDomainError(
+        `failed to resolve term: ${error?.message ?? 'no row returned'}`,
+        error,
+      );
     }
 
     return { id: data.id, displayText: data.display_text, language: data.language };

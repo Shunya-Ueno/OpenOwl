@@ -9,6 +9,7 @@ import { useSignInWithApple } from '../../src/features/auth/application/useSignI
 import { getAuthErrorMessage } from '../../src/features/auth/authErrorMessage';
 import { Banner } from '../../src/shared/ui/Banner';
 import { colors, spacing, typography } from '../../src/shared/theme/tokens';
+import { testIds } from '../../src/shared/testIds';
 
 export default function SignInScreen() {
   const signIn = useSignInWithPassword();
@@ -45,7 +46,9 @@ export default function SignInScreen() {
         OpenOwl にログイン
       </Text>
 
-      {errorMessage ? <Banner tone="danger" message={errorMessage} /> : null}
+      {errorMessage ? (
+        <Banner tone="danger" message={errorMessage} testID={testIds.signIn.error} />
+      ) : null}
 
       <EmailPasswordForm
         mode="sign-in"

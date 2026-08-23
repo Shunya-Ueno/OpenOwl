@@ -1,0 +1,25 @@
+# **このフローがネイティブ E2E の主目的**(docs/testing-ci.md 3.2)。
+#
+# セッションの永続化は Web(localStorage)とネイティブ(SecureStore)で実装が分かれる
+# 数少ない箇所の 1 つで、さらに SecureStore には 1 値あたり ~2048 バイトの上限があるため
+# JWT を分割して保存している(ADR-0013)。
+#
+# 分割・復元のどちらかが壊れると「アプリを閉じるたびにログアウトされる」という
+# 致命的な UX になるが、Web の E2E では絶対に検出できない。
+appId: com.openowl.app
+---
+- launchApp:
+    clearState: true
+
+- runFlow: subflows/sign-in.yaml
+
+# アプリを完全に終了させてから再起動する。
+# (clearState を付けないこと。付けると Keychain も消えて検証にならない)
+- stopApp
+- launchApp
+
+# 再起動後にサインイン画面へ戻されないこと = 分割保存した JWT を復元できている。
+- assertVisible:
+    id: 'home-title'
+- assertNotVisible:
+    id: 'sign-in-submit'

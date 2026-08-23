@@ -639,6 +639,22 @@ UI ライブラリを入れず、`src/shared/theme/tokens.ts` に色・余白・
 - port（interface）は依存方向の制御と将来のプロバイダ差し替えのためにあり、
   テストダブルを差し込むためではない（バックエンドと同じ方針）
 
+### 12.1 テストへの帰結（フェーズ 6）
+
+この方針がテスト戦略をほぼ決めている。詳細は [`testing-ci.md`](./testing-ci.md)。
+
+- **単体テストは外部 I/O を持たない純粋ロジックのみ**（`WordInput`、`parseErrorResponse`、
+  `getAuthErrorMessage`）。コンポーネントの単体テストは書かない
+  （[ADR-0016](./adr/0016-unit-tests-limited-to-pure-logic.md)）。
+- 画面の挙動は **Playwright が実ブラウザで実バンドルを動かして**検証する
+  （[ADR-0014](./adr/0014-playwright-and-maestro-over-detox.md)）。
+- E2E のセレクタは `src/shared/testIds.ts` の `testID` に一本化する。
+  `testID` は Web では `data-testid`、iOS では accessibility identifier になるため、
+  Playwright と Maestro でそのまま共有できる。
+- `.native.ts` に分岐している 3 箇所（Apple/Google のネイティブサインイン、
+  SecureStore の分割保存、ディープリンク）だけは Web の E2E で覆えないため、
+  Maestro のフローが受け持つ。
+
 ## 13. フェーズ 5 に進む前に必要な確認事項
 
 コード実装の前に、人手での外部サービス設定が必要なもの。
@@ -654,3 +670,6 @@ UI ライブラリを入れず、`src/shared/theme/tokens.ts` に色・余白・
 
 1〜5 が揃わなくても、**Email/Password 認証と類義語生成は実装・動作確認できる**。
 Google / Apple ログインだけを後追いにする進め方が可能。
+
+フェーズ 6（CI / デプロイ）で追加になった人手作業は
+[`deployment.md`](./deployment.md) §5.2 にまとめてある。

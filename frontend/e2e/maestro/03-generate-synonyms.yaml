@@ -1,0 +1,42 @@
+# ネイティブから Edge Function を呼べること。
+#
+# Web と同じアプリケーションコードだが、fetch の実装(React Native の XHR ベース)と
+# AbortController のポリフィルがネイティブでは別物になる
+# (EdgeFunctionSynonymsApi のタイムアウト処理はここでしか実物を確認できない)。
+#
+# コスト: E2E_WORD は固定語なので、通常はキャッシュヒットで返り
+# DeepSeek のトークンを消費しない(docs/testing-ci.md 6.5)。
+appId: com.openowl.app
+env:
+  E2E_WORD: improve
+---
+- launchApp:
+    clearState: true
+
+- runFlow: subflows/sign-in.yaml
+
+- tapOn:
+    id: 'home-word-input'
+- inputText: ${E2E_WORD}
+- hideKeyboard
+
+- tapOn:
+    id: 'home-generate'
+
+# 結果画面へ遷移し、類義語カードが出る。
+- assertVisible:
+    id: 'result-title'
+- assertVisible:
+    id: 'synonym-card'
+
+# 生成エラーが出ていないこと。
+- assertNotVisible:
+    id: 'generation-error'
+
+# 作った履歴を片付ける(docs/testing-ci.md 6.4)。
+- tapOn:
+    id: 'result-back'
+- assertVisible:
+    id: 'home-title'
+- tapOn:
+    id: 'history-row-delete'

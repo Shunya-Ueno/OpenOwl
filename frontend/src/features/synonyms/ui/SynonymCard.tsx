@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from '../../../shared/ui/Card';
 import { colors, spacing, typography } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 import type { SynonymItem } from '../domain/SynonymResult';
 
 const PART_OF_SPEECH_LABEL: Record<NonNullable<SynonymItem['partOfSpeech']>, string> = {
@@ -28,7 +29,7 @@ export function SynonymCard({ item }: SynonymCardProps) {
   ].filter((tag): tag is string => tag !== null);
 
   return (
-    <Card>
+    <Card testID={testIds.result.card}>
       <View style={styles.header}>
         <Text style={styles.word} accessibilityRole="header">
           {item.text}

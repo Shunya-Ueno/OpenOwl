@@ -11,6 +11,7 @@ import { useAuthStore } from '../src/features/auth/authStore';
 import { registerServiceWorker, type ServiceWorkerUpdate } from '../src/shared/pwa/registerServiceWorker';
 import { injectHeadTags } from '../src/shared/pwa/injectHeadTags';
 import { colors, spacing, typography } from '../src/shared/theme/tokens';
+import { testIds } from '../src/shared/testIds';
 
 export default function RootLayout() {
   const setSession = useAuthStore((state) => state.setSession);
@@ -55,10 +56,15 @@ export default function RootLayout() {
 
 function UpdateBanner({ update }: { readonly update: ServiceWorkerUpdate }) {
   return (
-    <View style={styles.updateBanner} accessibilityLiveRegion="polite">
+    <View
+      style={styles.updateBanner}
+      accessibilityLiveRegion="polite"
+      testID={testIds.updateBanner.root}
+    >
       <Text style={styles.updateText}>新しいバージョンがあります</Text>
       <Pressable
         onPress={update.activateAndReload}
+        testID={testIds.updateBanner.action}
         accessibilityRole="button"
         accessibilityLabel="更新して再読み込み"
       >

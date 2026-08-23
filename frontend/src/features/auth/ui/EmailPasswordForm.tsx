@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { TextField } from '../../../shared/ui/TextField';
 import { Button } from '../../../shared/ui/Button';
 import { spacing } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 8;
@@ -44,9 +45,13 @@ export function EmailPasswordForm({ mode, submitLabel, submitting, onSubmit }: E
     onSubmit({ email: trimmedEmail, password });
   };
 
+  // このフォームはログインと新規登録で共用するため、testID も mode で切り替える。
+  const ids = mode === 'sign-in' ? testIds.signIn : testIds.signUp;
+
   return (
     <View style={styles.container}>
       <TextField
+        testID={ids.email}
         label="メールアドレス"
         value={email}
         onChangeText={setEmail}
@@ -58,6 +63,7 @@ export function EmailPasswordForm({ mode, submitLabel, submitting, onSubmit }: E
         editable={!submitting}
       />
       <TextField
+        testID={ids.password}
         label="パスワード"
         value={password}
         onChangeText={setPassword}
@@ -68,7 +74,7 @@ export function EmailPasswordForm({ mode, submitLabel, submitting, onSubmit }: E
         textContentType={mode === 'sign-up' ? 'newPassword' : 'password'}
         editable={!submitting}
       />
-      <Button label={submitLabel} onPress={handleSubmit} loading={submitting} />
+      <Button testID={ids.submit} label={submitLabel} onPress={handleSubmit} loading={submitting} />
     </View>
   );
 }

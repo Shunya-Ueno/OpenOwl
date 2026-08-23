@@ -8,6 +8,7 @@ import { Button } from '../../src/shared/ui/Button';
 import { Splash } from '../../src/shared/ui/Splash';
 import { Banner } from '../../src/shared/ui/Banner';
 import { colors, spacing, typography } from '../../src/shared/theme/tokens';
+import { testIds } from '../../src/shared/testIds';
 
 export default function SettingsScreen() {
   const userId = useUserId();
@@ -18,10 +19,15 @@ export default function SettingsScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="戻る">
+        <Pressable
+          onPress={() => router.back()}
+          testID={testIds.settings.back}
+          accessibilityRole="button"
+          accessibilityLabel="戻る"
+        >
           <Text style={styles.back}>← 戻る</Text>
         </Pressable>
-        <Text style={styles.title} accessibilityRole="header">
+        <Text style={styles.title} accessibilityRole="header" testID={testIds.settings.title}>
           設定
         </Text>
       </View>
@@ -29,7 +35,11 @@ export default function SettingsScreen() {
       {profile.isLoading ? <Splash /> : null}
 
       {profile.isError ? (
-        <Banner tone="danger" message="プロフィールを取得できませんでした。" />
+        <Banner
+          tone="danger"
+          message="プロフィールを取得できませんでした。"
+          testID={testIds.settings.error}
+        />
       ) : null}
 
       {profile.data ? (
@@ -41,7 +51,13 @@ export default function SettingsScreen() {
       ) : null}
 
       <View style={styles.signOutSection}>
-        <Button label="サインアウト" variant="danger" onPress={() => signOut.mutate()} loading={signOut.isPending} />
+        <Button
+          testID={testIds.settings.signOut}
+          label="サインアウト"
+          variant="danger"
+          onPress={() => signOut.mutate()}
+          loading={signOut.isPending}
+        />
       </View>
     </ScrollView>
   );

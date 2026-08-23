@@ -141,6 +141,7 @@ Infrastructure     … DeepSeek クライアント、Supabase リポジトリ（
 
 `interface`（ポート）は**テストダブル差し替えのためではない**。
 本プロジェクトはモック禁止のため、テストは常に実 API に接続する。
+この原則はフェーズ 6 でも維持した（[ADR-0016](./adr/0016-unit-tests-limited-to-pure-logic.md)）。
 ポートを切る目的は次の 2 点に限られる:
 
 1. Domain / Application が Deno や Supabase SDK に依存しないようにする（依存方向の制御）
@@ -192,4 +193,4 @@ Expo の `.native.ts` / `.web.ts` によるファイル分割で解決する。
 | セキュリティ | DeepSeek キーはサーバー側のみ。全テーブル RLS 有効 | [security.md](./security.md) |
 | エラーハンドリング | エラーコードを型で定義し、UI 側でコードごとの復旧手段を出し分ける | [api-spec.md](./api-spec.md) |
 | コスト | キャッシュ優先・リトライ最大 1 回・`max_tokens` 固定・プロンプト前方固定 | [llm-integration.md](./llm-integration.md) |
-| テスト | モック不使用。テスト用 Supabase プロジェクトと実 DeepSeek キーを使う | フェーズ 6 |
+| テスト | モック不使用。単体テストは純粋ロジックのみ、それ以外は実 Supabase に対する E2E が担う | [testing-ci.md](./testing-ci.md) |

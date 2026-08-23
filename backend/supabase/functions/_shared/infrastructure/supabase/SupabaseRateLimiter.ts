@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types.ts';
 import type { RateLimiter } from '../../domain/ports/RateLimiter.ts';
-import { RateLimitExceededError, InternalDomainError } from '../../domain/errors.ts';
+import { InternalDomainError, RateLimitExceededError } from '../../domain/errors.ts';
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
 

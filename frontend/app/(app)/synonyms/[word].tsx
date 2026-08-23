@@ -13,6 +13,7 @@ import { EmptyState } from '../../../src/shared/ui/EmptyState';
 import { ApiError } from '../../../src/shared/api/ApiError';
 import { handleUnauthorizedError } from '../../../src/shared/api/handleUnauthorizedError';
 import { colors, spacing, typography } from '../../../src/shared/theme/tokens';
+import { testIds } from '../../../src/shared/testIds';
 
 /**
  * ADR-0012: URL 直接アクセス・リロード・履歴タップでは自動生成しない。
@@ -56,15 +57,22 @@ export default function SynonymResultScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="戻る">
+      <Pressable
+        onPress={() => router.back()}
+        testID={testIds.result.back}
+        accessibilityRole="button"
+        accessibilityLabel="戻る"
+      >
         <Text style={styles.back}>← 戻る</Text>
       </Pressable>
 
-      <Text style={styles.title} accessibilityRole="header">
+      <Text style={styles.title} accessibilityRole="header" testID={testIds.result.title}>
         {word}
       </Text>
 
-      {noticeMessage ? <Banner tone="info" message={noticeMessage} /> : null}
+      {noticeMessage ? (
+        <Banner tone="info" message={noticeMessage} testID={testIds.result.notice} />
+      ) : null}
 
       {stored.isLoading && !result ? <Splash /> : null}
 
@@ -75,10 +83,16 @@ export default function SynonymResultScreen() {
       {!stored.isLoading && !result && !generationError ? (
         <View style={styles.emptyContainer}>
           <EmptyState
+            testID={testIds.result.notGenerated}
             title="まだ生成されていません"
             description="この単語の類義語をまだ生成していません。"
           />
-          <Button label="この単語を生成する" onPress={() => handleGenerate(false)} loading={generate.isPending} />
+          <Button
+            testID={testIds.result.generate}
+            label="この単語を生成する"
+            onPress={() => handleGenerate(false)}
+            loading={generate.isPending}
+          />
         </View>
       ) : null}
 
@@ -87,6 +101,7 @@ export default function SynonymResultScreen() {
           <GenerationStateBadge generation={result.generation} />
           {result.synonyms.length === 0 ? (
             <EmptyState
+              testID={testIds.result.noSynonyms}
               title="類義語が見つかりませんでした"
               description="スペルをご確認のうえ、もう一度お試しください。"
             />
@@ -94,6 +109,7 @@ export default function SynonymResultScreen() {
             result.synonyms.map((item, index) => <SynonymCard key={`${item.text}-${index}`} item={item} />)
           )}
           <Button
+            testID={testIds.result.regenerate}
             label="別の候補を見る"
             variant="secondary"
             onPress={() => handleGenerate(true)}

@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 import type { SynonymResult } from '../domain/SynonymResult';
 
 interface GenerationStateBadgeProps {
@@ -13,7 +14,7 @@ interface GenerationStateBadgeProps {
 export function GenerationStateBadge({ generation }: GenerationStateBadgeProps) {
   if (generation.stale) {
     return (
-      <View style={[styles.badge, styles.warning]}>
+      <View style={[styles.badge, styles.warning]} testID={testIds.result.stateBadge}>
         <Text style={[styles.text, styles.warningText]}>⚠ 最新ではない可能性があります</Text>
       </View>
     );
@@ -21,7 +22,7 @@ export function GenerationStateBadge({ generation }: GenerationStateBadgeProps) 
 
   if (generation.id === null) {
     return (
-      <View style={[styles.badge, styles.info]}>
+      <View style={[styles.badge, styles.info]} testID={testIds.result.stateBadge}>
         <Text style={styles.text}>この結果は保存されていません</Text>
       </View>
     );

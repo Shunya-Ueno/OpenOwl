@@ -6,6 +6,7 @@ import { useSignUpWithPassword } from '../../src/features/auth/application/useSi
 import { getAuthErrorMessage } from '../../src/features/auth/authErrorMessage';
 import { Banner } from '../../src/shared/ui/Banner';
 import { colors, spacing, typography } from '../../src/shared/theme/tokens';
+import { testIds } from '../../src/shared/testIds';
 
 export default function SignUpScreen() {
   const signUp = useSignUpWithPassword();
@@ -25,7 +26,9 @@ export default function SignUpScreen() {
         新規登録
       </Text>
 
-      {errorMessage ? <Banner tone="danger" message={errorMessage} /> : null}
+      {errorMessage ? (
+        <Banner tone="danger" message={errorMessage} testID={testIds.signUp.error} />
+      ) : null}
 
       <EmailPasswordForm
         mode="sign-up"

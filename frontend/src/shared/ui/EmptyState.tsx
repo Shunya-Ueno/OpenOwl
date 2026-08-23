@@ -4,11 +4,12 @@ import { colors, spacing, typography } from '../theme/tokens';
 interface EmptyStateProps {
   readonly title: string;
   readonly description?: string;
+  readonly testID?: string;
 }
 
-export function EmptyState({ title, description }: EmptyStateProps) {
+export function EmptyState({ title, description, testID }: EmptyStateProps) {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID={testID}>
       <Text style={styles.title}>{title}</Text>
       {description ? <Text style={styles.description}>{description}</Text> : null}
     </View>

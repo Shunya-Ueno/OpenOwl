@@ -1,5 +1,6 @@
 import { Pressable, View, Text, StyleSheet } from 'react-native';
 import { colors, radius, spacing, typography, layout } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 import type { LookupSummary } from '../infrastructure/LookupsApi';
 
 interface LookupRowProps {
@@ -10,18 +11,21 @@ interface LookupRowProps {
 
 export function LookupRow({ lookup, onPress, onDelete }: LookupRowProps) {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} testID={testIds.history.row}>
       <Pressable
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={`${lookup.term.text} の類義語を見る`}
         style={styles.main}
       >
-        <Text style={styles.word}>{lookup.term.text}</Text>
+        <Text style={styles.word} testID={testIds.history.rowWord}>
+          {lookup.term.text}
+        </Text>
         <Text style={styles.date}>{formatDate(lookup.createdAt)}</Text>
       </Pressable>
       <Pressable
         onPress={onDelete}
+        testID={testIds.history.rowDelete}
         accessibilityRole="button"
         accessibilityLabel={`${lookup.term.text} を履歴から削除`}
         hitSlop={spacing.sm}

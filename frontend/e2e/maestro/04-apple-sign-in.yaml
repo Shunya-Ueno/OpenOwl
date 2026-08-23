@@ -1,0 +1,31 @@
+# Apple サインイン(iOS 審査要件)。
+#
+# **既定の実行対象に含めない。** 手動で走らせるフロー。
+# 理由: Sign in with Apple のシートはアプリ外プロセスで表示され、
+# シミュレータに Apple ID をサインイン済みにしておく必要があるため、
+# 無人の CI で安定して回せない。
+#
+# Detox ではなく Maestro を選んだ理由の 1 つが、このアプリ外 UI を
+# そもそも操作できることだった(ADR-0014)。ここではボタンを押して
+# システムのシートが立ち上がるところまでを自動で確認し、
+# 認証情報の入力から先は人が行う。
+#
+# 実行方法:
+#   maestro test e2e/maestro/04-apple-sign-in.yaml
+appId: com.openowl.app
+---
+- launchApp:
+    clearState: true
+
+- assertVisible:
+    id: 'sign-in-apple'
+
+- tapOn:
+    id: 'sign-in-apple'
+
+# Apple のシステムシートが出ること。ここから先は手動。
+# シートのラベルは OS のバージョンと言語設定で変わるため、
+# id ではなくテキストで緩く見る(このフローが手動前提である理由でもある)。
+- extendedWaitUntil:
+    visible: 'Apple'
+    timeout: 15000

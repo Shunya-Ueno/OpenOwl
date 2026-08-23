@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types.ts';
 import type {
-  SynonymGenerationRepository,
   SaveGenerationInput,
+  SynonymGenerationRepository,
 } from '../../domain/ports/SynonymGenerationRepository.ts';
 import type { ResolvedTerm } from '../../domain/ports/TermRepository.ts';
 import { SynonymGeneration } from '../../domain/SynonymGeneration.ts';
@@ -99,7 +99,10 @@ export class SupabaseSynonymGenerationRepository implements SynonymGenerationRep
       throw new InternalDomainError(`failed to load synonym items: ${error.message}`, error);
     }
 
-    return (data as Pick<SynonymItemRow, 'synonym_text' | 'part_of_speech' | 'register' | 'nuance'>[]).map(
+    return (data as Pick<
+      SynonymItemRow,
+      'synonym_text' | 'part_of_speech' | 'register' | 'nuance'
+    >[]).map(
       (row) =>
         new Synonym(
           row.synonym_text,

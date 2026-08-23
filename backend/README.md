@@ -45,6 +45,38 @@ supabase functions deploy synonyms
 supabase functions logs synonyms --tail
 ```
 
+**`main` への push では `.github/workflows/deploy.yml` が
+マイグレーション適用 → Function デプロイ → Vercel 本番の順に自動実行する**
+（[../docs/deployment.md](../docs/deployment.md) §5）。手動デプロイは
+検証や緊急時のためのもので、通常は不要。
+
+## テスト / 静的解析
+
+```bash
+cd supabase/functions
+deno task check   # deno fmt --check && deno lint && deno check .
+deno task test    # 単体テスト
+```
+
+CI（`ci.yml` の `backend` ジョブ）が実行するのと同じコマンド。
+
+単体テストの対象は**外部 I/O を持たない純粋ロジックだけ**
+（[ADR-0016](../docs/adr/0016-unit-tests-limited-to-pure-logic.md)）:
+`Term` の正規化規則、`mapDomainErrorToHttp` の写像、`RequestSchema` の既定値、
+`SynonymPromptBuilder` のプロンプト固定。
+リポジトリ実装・`DeepSeekClient`・ユースケースには単体テストを書かない
+（書くにはモックが要り、方針違反になる）。それらの正しさは E2E が担保する。
+
+テスト用の依存は**追加しない**。ランナーは Deno 内蔵の `Deno.test`、
+アサーションは `node:assert/strict` を使う。
+
+`deno fmt` の対象から `database.types.ts` を除外してある
+（`supabase gen types` が生成するファイルなので、整形すると再生成のたびに差分が出る）。
+
+`deno.lock` はコミットする（依存の integrity を CI で固定するため）。
+`deno.json` の `imports` を変更したら、`deno check .` を一度実行して
+lock を更新したうえでコミットすること。
+
 ## Secrets
 
 以下を **Supabase ダッシュボード → Project Settings → Edge Functions → Secrets**、

@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { TextField } from '../../../shared/ui/TextField';
 import { Button } from '../../../shared/ui/Button';
 import { spacing } from '../../../shared/theme/tokens';
+import { testIds } from '../../../shared/testIds';
 
 interface ProfileFormProps {
   readonly initialDisplayName: string | null;
@@ -25,13 +26,14 @@ export function ProfileForm({ initialDisplayName, saving, onSave }: ProfileFormP
   return (
     <View style={styles.container}>
       <TextField
+        testID={testIds.settings.displayName}
         label="表示名"
         value={displayName}
         onChangeText={setDisplayName}
         editable={!saving}
         maxLength={50}
       />
-      <Button label="保存" onPress={handleSave} loading={saving} />
+      <Button testID={testIds.settings.save} label="保存" onPress={handleSave} loading={saving} />
     </View>
   );
 }

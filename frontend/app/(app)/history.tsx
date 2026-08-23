@@ -7,6 +7,7 @@ import { EmptyState } from '../../src/shared/ui/EmptyState';
 import { Splash } from '../../src/shared/ui/Splash';
 import { Banner } from '../../src/shared/ui/Banner';
 import { colors, spacing, typography } from '../../src/shared/theme/tokens';
+import { testIds } from '../../src/shared/testIds';
 
 export default function HistoryScreen() {
   const lookups = useLookups();
@@ -15,10 +16,15 @@ export default function HistoryScreen() {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="戻る">
+        <Pressable
+          onPress={() => router.back()}
+          testID={testIds.history.back}
+          accessibilityRole="button"
+          accessibilityLabel="戻る"
+        >
           <Text style={styles.back}>← 戻る</Text>
         </Pressable>
-        <Text style={styles.title} accessibilityRole="header">
+        <Text style={styles.title} accessibilityRole="header" testID={testIds.history.title}>
           履歴
         </Text>
       </View>
@@ -26,11 +32,19 @@ export default function HistoryScreen() {
       {lookups.isLoading ? <Splash /> : null}
 
       {lookups.isError ? (
-        <Banner tone="danger" message="履歴を取得できませんでした。もう一度お試しください。" />
+        <Banner
+          tone="danger"
+          message="履歴を取得できませんでした。もう一度お試しください。"
+          testID={testIds.history.error}
+        />
       ) : null}
 
       {lookups.data && lookups.data.length === 0 ? (
-        <EmptyState title="まだ履歴がありません" description="単語を入力して類義語を生成してみましょう。" />
+        <EmptyState
+          testID={testIds.history.empty}
+          title="まだ履歴がありません"
+          description="単語を入力して類義語を生成してみましょう。"
+        />
       ) : null}
 
       {lookups.data?.map((lookup) => (

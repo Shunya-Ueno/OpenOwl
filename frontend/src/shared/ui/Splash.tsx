@@ -1,10 +1,16 @@
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../theme/tokens';
+import { testIds } from '../testIds';
 
 /** セッション復元中の表示(docs/frontend-design.md 2 のフロー図の "loading" 状態)。 */
 export function Splash() {
   return (
-    <View style={styles.container} accessibilityLabel="読み込み中" accessibilityRole="progressbar">
+    <View
+      style={styles.container}
+      accessibilityLabel="読み込み中"
+      accessibilityRole="progressbar"
+      testID={testIds.splash}
+    >
       <ActivityIndicator size="large" color={colors.primary} />
     </View>
   );
