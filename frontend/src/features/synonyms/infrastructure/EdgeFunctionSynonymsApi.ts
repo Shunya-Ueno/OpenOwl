@@ -47,6 +47,12 @@ export class EdgeFunctionSynonymsApi implements SynonymsApi {
       throw new ApiError('unauthorized', '認証が必要です。再度ログインしてください。');
     }
 
+    // AbortSignal.timeout() はブラウザにはあるが、React Native の AbortSignal は
+    // `abort-controller` パッケージのポリフィルで static timeout を持たない。
+    // AbortController + setTimeout で両プラットフォーム共通に実装する。
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+
     let response: Response;
     try {
       response = await fetch(`${env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/synonyms`, {
@@ -61,10 +67,16 @@ export class EdgeFunctionSynonymsApi implements SynonymsApi {
           ...(input.maxResults !== undefined ? { maxResults: input.maxResults } : {}),
           ...(input.forceRefresh !== undefined ? { forceRefresh: input.forceRefresh } : {}),
         }),
-        signal: AbortSignal.timeout(CLIENT_TIMEOUT_MS),
+        signal: controller.signal,
       });
     } catch {
+      // abort() 由来か、それ以外(オフライン等)かを区別する。
+      if (controller.signal.aborted) {
+        throw new ApiError('upstream_timeout', '時間がかかっています。もう一度お試しください。');
+      }
       throw new ApiError('network_error', 'オフラインのようです。接続を確認してください。');
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     if (!response.ok) {

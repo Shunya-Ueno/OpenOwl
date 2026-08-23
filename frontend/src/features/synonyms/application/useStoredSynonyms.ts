@@ -20,11 +20,14 @@ export function useStoredSynonyms(rawWord: string) {
 async function fetchStoredSynonyms(rawWord: string): Promise<SynonymResult | null> {
   const wordInput = WordInput.parse(rawWord);
 
+  // terms は !inner が必須: PostgREST は埋め込みリソースへの .eq() フィルタを
+  // inner join でない限り WHERE として反映しない(left join のまま無視される)。
+  // !inner を外すと常に「直近の(単語を問わない)lookup」が返ってしまう。
   const { data, error } = await supabase
     .from('lookups')
     .select(
       `
-        terms!lookups_term_id_fkey ( id, display_text, language ),
+        terms!lookups_term_id_fkey!inner ( id, display_text, language ),
         synonym_generations!lookups_generation_id_fkey (
           id,
           model,

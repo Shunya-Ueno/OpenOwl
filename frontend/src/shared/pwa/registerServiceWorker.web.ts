@@ -9,6 +9,13 @@ export function registerServiceWorker(onUpdateAvailable: (update: ServiceWorkerU
   if (process.env.NODE_ENV !== 'production') return;
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 
+  // ユーザーが「更新する」を押した(=SKIP_WAITING を送った)ときだけ true にする。
+  // sw.js は初回インストール時にも clients.claim() を呼ぶため、初回訪問でも
+  // controllerchange は発火する。このフラグが無いと、初回訪問者が入力中の内容が
+  // 消える不要なリロードが毎回発生してしまう。
+  let refreshing = false;
+  let hasReloaded = false;
+
   globalThis.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw.js')
@@ -21,7 +28,10 @@ export function registerServiceWorker(onUpdateAvailable: (update: ServiceWorkerU
             const hasExistingController = Boolean(navigator.serviceWorker.controller);
             if (installing.state === 'installed' && hasExistingController) {
               onUpdateAvailable({
-                activateAndReload: () => installing.postMessage({ type: 'SKIP_WAITING' }),
+                activateAndReload: () => {
+                  refreshing = true;
+                  installing.postMessage({ type: 'SKIP_WAITING' });
+                },
               });
             }
           });
@@ -31,9 +41,8 @@ export function registerServiceWorker(onUpdateAvailable: (update: ServiceWorkerU
         // 登録失敗は致命的ではない(アプリはネットワーク優先で動く)。無視する。
       });
 
-    let hasReloaded = false;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (hasReloaded) return;
+      if (!refreshing || hasReloaded) return;
       hasReloaded = true;
       globalThis.location.reload();
     });

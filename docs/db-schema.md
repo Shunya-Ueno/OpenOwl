@@ -467,24 +467,37 @@ create function public.find_or_create_term(
 ) returns public.terms
 language plpgsql security definer set search_path = ''
 as $$
-declare v_term public.terms;
+declare
+  v_term public.terms;
 begin
-  insert into public.terms (language, display_text, normalized_text)
-  values (p_language, p_display_text, p_normalized_text)
-  on conflict (language, normalized_text) do nothing
-  returning * into v_term;
-
-  if v_term.id is null then           -- 同時実行で他が先に入れた場合
+  loop
     select * into v_term from public.terms
     where language = p_language and normalized_text = p_normalized_text;
-  end if;
 
-  return v_term;
+    if found then
+      return v_term;
+    end if;
+
+    begin
+      insert into public.terms (language, display_text, normalized_text)
+      values (p_language, p_display_text, p_normalized_text)
+      returning * into v_term;
+      return v_term;
+    exception when unique_violation then
+      -- 同時実行で他のトランザクションが先に確定した。select からやり直す。
+      null;
+    end;
+  end loop;
 end;
 $$;
 
 revoke execute on function public.find_or_create_term(text, text, text) from anon, authenticated;
 ```
+
+PostgreSQL 公式ドキュメントが upsert の競合対策として明示する
+「`unique_violation` を捕捉してループする」パターンを使う。並行実行の安全性を
+`ON CONFLICT DO NOTHING` のロック挙動という実装の暗黙の前提に置かず、
+明示的な制御フローにするため。
 
 `save_synonym_generation` は明細を `jsonb` 配列で受け取り、
 生成行・明細行・`lookups` 行を 1 トランザクションで挿入して生成 ID を返す。
