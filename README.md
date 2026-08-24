@@ -109,7 +109,7 @@ cd OpenOwl
 | `DEEPSEEK_TIMEOUT_MS` | `20000` | 上流タイムアウト |
 | `SYNONYM_CACHE_TTL_DAYS` | `30` | 生成結果の再利用期間 |
 | `RATE_LIMIT_PER_HOUR` | `60` | ユーザーあたりの生成回数上限 |
-| `ALLOWED_ORIGINS` | `https://openowl.vercel.app,http://localhost:8081` | CORS 許可オリジン |
+| `ALLOWED_ORIGINS` | `https://openowl.vercel.app,http://localhost:8081,http://127.0.0.1:4173` | CORS 許可オリジン（完全一致）。テスト用プロジェクトには E2E の配信元 `http://127.0.0.1:4173` も必要 |
 
 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY` は
 Edge Functions 実行環境に自動注入されるため、手動設定は不要。

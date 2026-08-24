@@ -267,6 +267,39 @@ GitHub Secrets の `VERCEL_AUTOMATION_BYPASS_SECRET` に登録すること。
 「プレビューが OpenOwl のビルドを配信しているか」の判定を置く**。
 これが落ちていたら、以降の失敗は追いかけるだけ無駄なので設定を先に直す。
 
+**(d) E2E のオリジンを `ALLOWED_ORIGINS` に入れ忘れていた。**
+
+Variables / Secrets を登録して初めて E2E が通しで走ったとき、
+**21 件中 15 件が成功し、`synonyms.spec.ts` の 4 件だけが落ちた**。
+
+一見「生成が遅くてタイムアウトした」ように見えるが、証拠はそれを否定していた。
+
+| 証拠 | 意味 |
+| --- | --- |
+| 最初の失敗は `result-title` が出ないこと（カードではない） | 結果画面へ**遷移していない** = mutation が成功していない。遷移は `onSuccess` でしか起きない |
+| 4 テスト × 2 回の計 8 回すべてが約 16 秒で失敗 | 固定語 `improve` なので、一度でも生成が成功していれば以降はキャッシュヒットで即返る。**一度も成功していない** |
+| 落ちるのは Edge Function を叩くスペックだけ | Auth と PostgREST を使うスペックは全部通っている |
+
+原因は **CORS**。`CorsPolicy` はオリジンの**完全一致**で判定する（[security.md](./security.md) §5）が、
+E2E は `dist/` を **`http://127.0.0.1:4173`** で配信しているのに対し、
+`ALLOWED_ORIGINS` の設定例は `http://localhost:8081` と Vercel ドメインしか挙げていなかった。
+ブラウザが `/functions/v1/synonyms` への呼び出しを止めるため、
+`fetch` が失敗し `network_error` のエラーカードがホーム画面に出て、遷移しない。
+Supabase の Auth / PostgREST は自前のオリジンで応答するのでこの影響を受けない。
+**フェーズ 6 で 4173 番ポートを導入したときに、この設定を追記し忘れたのが原因。**
+
+対処は 2 つ:
+
+1. テスト用プロジェクトの `ALLOWED_ORIGINS` に **`http://127.0.0.1:4173`** を追加する
+   （[deployment.md](./deployment.md) §5.2）
+2. スペック側で**カードとエラーカードの両方を待つ**ようにした
+   （`generateAndWaitForResult`）。エラーなら画面のメッセージを添えて落ちるので、
+   次からは「element(s) not found」ではなく理由が出る
+
+あわせて生成待ちの上限を 30 秒に広げた。サーバー側の DeepSeek タイムアウトが既定 20 秒
+＋リトライ最大 1 回なので、Playwright の既定 15 秒では正常応答を待ちきれない。
+**`test.slow()` はテスト全体のタイムアウトにしか効かず、`expect` の既定値は変わらない**点に注意。
+
 ### 6.1 前提: CI は本番プロジェクトに一切触らない
 
 [deployment.md](./deployment.md) §2.1 の 2 プロジェクト構成をそのまま使う。

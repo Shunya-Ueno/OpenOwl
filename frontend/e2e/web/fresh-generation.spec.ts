@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { testIds } from '../../src/shared/testIds';
 import { e2eEnv } from '../env';
-import { signIn, deleteFromHistory } from './helpers';
+import { signIn, deleteFromHistory, generateAndWaitForResult, GENERATION_TIMEOUT_MS } from './helpers';
 
 /**
  * キャッシュに当たらない経路 — つまり DeepSeek を実際に呼ぶ経路 — の確認。
@@ -27,16 +27,12 @@ test.describe('実生成(キャッシュに当たらない経路)', () => {
     const word = rotatingWord();
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
+    // エラーになった場合はサーバーの理由を添えて落ちる。
+    await generateAndWaitForResult(page, word);
 
     await expect(page.getByTestId(testIds.result.title)).toHaveText(word);
 
-    // 生成が失敗していればエラーカードが出る。まずそれが無いことを確認する。
-    await expect(page.getByTestId(testIds.generationError.root)).toHaveCount(0);
-
     const cards = page.getByTestId(testIds.result.card);
-    await expect(cards.first()).toBeVisible();
 
     // LLM 出力は zod 検証と DB の CHECK を通っているはずなので、
     // カードに語が入っていることまで見る(空文字が保存されていないこと)。
@@ -50,15 +46,18 @@ test.describe('実生成(キャッシュに当たらない経路)', () => {
     const word = rotatingWord();
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await generateAndWaitForResult(page, word);
 
     // forceRefresh: true の経路(ADR-0012: 既定では true にしない)。
     await page.getByTestId(testIds.result.regenerate).click();
 
-    await expect(page.getByTestId(testIds.generationError.root)).toHaveCount(0);
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    // 再生成も実 LLM を叩くため、既定の expect タイムアウトでは足りない。
+    await expect(page.getByTestId(testIds.generationError.root)).toHaveCount(0, {
+      timeout: GENERATION_TIMEOUT_MS,
+    });
+    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible({
+      timeout: GENERATION_TIMEOUT_MS,
+    });
 
     await deleteFromHistory(page, word);
   });
