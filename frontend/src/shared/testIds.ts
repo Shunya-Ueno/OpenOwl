@@ -14,6 +14,8 @@
  */
 export const testIds = {
   splash: 'splash',
+  /** 環境変数がビルドに埋め込まれていないときの画面(docs/frontend-design.md 13.1)。 */
+  configError: 'config-error',
 
   signIn: {
     email: 'sign-in-email',

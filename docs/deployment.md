@@ -20,7 +20,7 @@ Vercel ダッシュボードで以下を設定する（**人手が必要な作�
 | Root Directory | `frontend` | これにより `backend/` と `docs/` はビルドコンテキストから外れる |
 | Framework Preset | Other | Expo 用プリセットに頼らず明示指定する |
 | Install Command | `npm ci` | ロックファイル固定 |
-| Build Command | `npx expo export --platform web` | 静的エクスポート |
+| Build Command | `npx expo export --platform web --clear` | 静的エクスポート。`--clear` を付けるのは、Metro のキャッシュが**環境変数の埋め込み値ごと**再利用され、変数を変えても古い値が残ることがあるため（[frontend-design.md](./frontend-design.md) §13.1） |
 | Output Directory | `dist` | `expo export` の既定出力先 |
 | Node.js Version | 22.x | |
 
@@ -118,6 +118,12 @@ Expo は Service Worker と manifest を自動生成しない（`expo-pwa` は�
 
 Vercel の環境変数は Production / Preview で別々の値を設定できるため、
 同じコードのままプレビューだけテスト用 Supabase を向かせる。
+
+**`EXPO_PUBLIC_SUPABASE_URL` と `EXPO_PUBLIC_SUPABASE_ANON_KEY` は
+Production / Preview の両方に設定する。** 片方だけだと、その環境のビルドには
+値が埋め込まれず、アプリが起動できない。以前これを Production 側で落としており、
+本番 URL が**設定エラー画面**（旧実装では真っ白）になった。
+未設定のときの挙動は [frontend-design.md](./frontend-design.md) §13.1 を参照。
 
 **注意**: Vercel のプレビュー URL はデプロイごとに変わる
 （`openowl-<hash>-<scope>.vercel.app`）。Supabase Auth の Redirect URLs に
