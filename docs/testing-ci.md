@@ -223,6 +223,29 @@ CommandError: No code signing certificates are available to use.
 足りなければ 1 行のエラーで止める**。`frontend` ジョブ側は
 （fork の PR では未設定が正常なので）失敗させず警告に留める。
 
+**(c) プレビューが OpenOwl のビルドを配信していないと、スモークが全滅する。**
+
+初回のプレビュースモークは 7 件すべてが、それぞれ別の理由で落ちた。
+
+| スペック | 観測された値 |
+| --- | --- |
+| セキュリティヘッダ | `referrer-policy` が `origin-when-cross-origin`（Vercel の既定値。`vercel.json` の指定が効いていない） |
+| `sw.js` のキャッシュ | `public, max-age=0, must-revalidate`（同上） |
+| manifest | `200` だが本文が JSON ではなく HTML |
+| バンドルの長期キャッシュ | ページ内に `/_expo/static/` を指す `<script>` が無い |
+
+ローカルの `dist/` にはこれらが正しく存在する（`manifest.webmanifest` / `sw.js` /
+`_expo/static/`、`index.html` は `/_expo/static/js/web/entry-*.js` を参照）。
+つまり**成果物は正しく、配信されているものが別物**という状態である。
+
+原因は Vercel のプロジェクト設定が §1.1 と食い違っていること
+（Root Directory / Build Command / Output Directory）、
+またはデプロイ保護が有効で保護ページが返っていること。**どちらもコードでは直せない。**
+
+再発時に原因を読み取れるよう、スモークの**先頭に
+「プレビューが OpenOwl のビルドを配信しているか」の判定を置く**。
+これが落ちていたら、以降の失敗は追いかけるだけ無駄なので設定を先に直す。
+
 ### 6.1 前提: CI は本番プロジェクトに一切触らない
 
 [deployment.md](./deployment.md) §2.1 の 2 プロジェクト構成をそのまま使う。

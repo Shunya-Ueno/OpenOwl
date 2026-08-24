@@ -272,6 +272,7 @@ push: main
 
 | # | どこで | 作業 | 未設定だとどうなるか |
 | --- | --- | --- | --- |
+| 0 | Vercel | **§1.1 のプロジェクト設定を実際に照合する**（Root Directory=`frontend` / Build Command=`npx expo export --platform web` / Output Directory=`dist`）。デプロイ保護を使う場合は Protection Bypass for Automation も必要 | プレビューが**別のものを 200 で配信**し、`vercel.json` のヘッダも効かない。プレビュースモークが全滅する（[testing-ci.md](./testing-ci.md) §5.5(c) に実例） |
 | 1 | Vercel | 本番ブランチ向けの **Deploy Hook** を作成し、URL を GitHub Secrets の `VERCEL_DEPLOY_HOOK_URL` へ登録 | **本番フロントエンドが誰もデプロイできなくなる**（`vercel.json` で自動デプロイを切っているため）。`deploy.yml` は明示的なエラーで落ちる |
 | 2 | GitHub | Environment `production` と `e2e` を作成 | ジョブが起動できない。`production` に承認レビューを付けるかは任意 |
 | 3 | GitHub | Variables に `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（**テスト用**プロジェクトの値）/ `SUPABASE_PROJECT_REF_PROD` を登録 | E2E 用ビルドが接続先を持たない |

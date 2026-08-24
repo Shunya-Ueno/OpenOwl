@@ -13,6 +13,29 @@ import { e2eEnv, isSynonymsFunctionCall } from '../env';
  * 生成は一切行わない(デプロイのたびに課金しないため)。
  */
 test.describe('プレビューデプロイのスモーク', () => {
+  /**
+   * 最初に「そもそも OpenOwl のビルドが配信されているか」を見る。
+   *
+   * Vercel のプロジェクト設定(Root Directory / Build Command / Output Directory)が
+   * docs/deployment.md 1.1 と食い違っていると、別のものが 200 で配信される。
+   * その状態では下の 6 つが全部それぞれ違う理由で落ち、ログから原因を読み取れない
+   * (実際に一度そうなった。docs/testing-ci.md 5.5(c))。
+   */
+  test('プレビューが OpenOwl のビルドを配信している', async ({ request }) => {
+    const response = await request.get('/');
+    const html = await response.text();
+
+    const servesOurBundle = html.includes('/_expo/static/');
+
+    expect(
+      servesOurBundle,
+      'プレビュー URL が expo export の出力を配信していません。' +
+        'Vercel のプロジェクト設定を docs/deployment.md 1.1 と照合してください' +
+        '(Root Directory=frontend / Build Command=npx expo export --platform web / Output Directory=dist)。' +
+        'デプロイ保護が有効な場合も、実体の代わりに保護ページが返るため同じ症状になります。',
+    ).toBe(true);
+  });
+
   test('アプリシェルが読み込まれ、サインイン画面が出る', async ({ page }) => {
     await page.goto('/');
 
