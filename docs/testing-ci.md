@@ -134,7 +134,9 @@ React Native の testID
 サーバーが返すエラーメッセージ（[api-spec.md](./api-spec.md) §2.4）はクライアントの管理外だからである。
 
 命名規則は `<画面または部品>-<役割>` のケバブケース（`sign-in-submit`、`home-word-input`）。
-一覧は `frontend/e2e/testIds.ts` に定数として集約し、Playwright 側はそれを import する。
+一覧は `frontend/src/shared/testIds.ts` に定数として集約し、
+**アプリのコンポーネントと Playwright の両方がそこから import する**
+（実装と E2E で二重管理にならないよう、`e2e/` 側ではなくアプリ側に置く）。
 Maestro の YAML からは import できないため文字列で書くが、同じファイルを参照先として
 コメントに明記する。
 
@@ -238,9 +240,28 @@ CommandError: No code signing certificates are available to use.
 `_expo/static/`、`index.html` は `/_expo/static/js/web/entry-*.js` を参照）。
 つまり**成果物は正しく、配信されているものが別物**という状態である。
 
-原因は Vercel のプロジェクト設定が §1.1 と食い違っていること
-（Root Directory / Build Command / Output Directory）、
-またはデプロイ保護が有効で保護ページが返っていること。**どちらもコードでは直せない。**
+**Root Directory は `frontend` で正しい**ことが確認できている
+（Vercel の GitHub コメントに埋め込まれたペイロードに `"rootDirectory":"frontend"` とある）。
+したがって原因はそれ以外に絞られ、証拠は**デプロイ保護**を最も強く示している。
+
+| 観測 | 何を示すか |
+| --- | --- |
+| `manifest.webmanifest` が **200 かつ HTML** | 単に `dist` が配信されていないだけなら 404 になるはず。200 で HTML が返るのは、全パスを横取りする層があるということ |
+| `referrer-policy` が付いている | 静的配信に Vercel が既定で付けるものではない。保護ページ（SSO 画面）は自前のセキュリティヘッダを付ける |
+| `vercel.json` のヘッダが 1 つも効かない | 保護層がアプリの手前で応答している場合と整合する |
+
+**決定的な確認方法**: プレビュー URL を 1 回 curl し、
+ステータスコードと本文が Vercel の認証ページかどうかを見る
+（CI の実行ログからは本文まで分からない）。
+
+保護が原因だった場合の対処は Vercel の
+**Protection Bypass for Automation** を有効にし、発行されたシークレットを
+GitHub Secrets の `VERCEL_AUTOMATION_BYPASS_SECRET` に登録すること。
+`playwright.preview.config.ts` は、この値がある場合にだけ
+`x-vercel-protection-bypass` ヘッダを全リクエストに付けるようにしてある
+（未設定なら何も付けないので、保護を使わない構成でもそのまま動く）。
+
+**いずれにせよコードでは直せない。**
 
 再発時に原因を読み取れるよう、スモークの**先頭に
 「プレビューが OpenOwl のビルドを配信しているか」の判定を置く**。
@@ -321,6 +342,7 @@ PR が集中しても上限に当たらない。
 | `E2E_USER_PASSWORD` | **Secrets** | 同上 |
 | `SUPABASE_ACCESS_TOKEN` | **Secrets** | Supabase CLI の認証 |
 | `VERCEL_DEPLOY_HOOK_URL` | **Secrets** | 本番デプロイの起動（§7.2）。URL を知っている者は誰でもデプロイを起動できる |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | **Secrets** | デプロイ保護を使う場合のみ。§5.5(c) を参照 |
 
 `SUPABASE_SERVICE_ROLE_KEY` と `DEEPSEEK_API_KEY` は**どちらにも置かない**。
 

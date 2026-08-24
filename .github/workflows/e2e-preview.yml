@@ -56,6 +56,9 @@ jobs:
           E2E_BASE_URL: ${{ github.event.deployment_status.environment_url }}
           E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
           E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          # デプロイ保護を使っている場合のみ設定する(docs/testing-ci.md 5.5(c))。
+          # 未設定ならヘッダは付かない。
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: npm run e2e:preview
 
       - name: Upload Playwright report

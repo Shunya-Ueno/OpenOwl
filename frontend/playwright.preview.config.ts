@@ -35,6 +35,19 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'off',
+    // Vercel のデプロイ保護が有効だと、保護ページが全パスを横取りして返るため
+    // スモークが全滅する(docs/testing-ci.md 5.5(c))。
+    // Protection Bypass for Automation のシークレットがある場合だけヘッダを付ける。
+    // 未設定なら何も付けないので、保護を使わない構成でもそのまま動く。
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
+      ? {
+          extraHTTPHeaders: {
+            'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+            // 保護をバイパスした状態を Cookie に残さない(共有 URL の誤露出を避ける)。
+            'x-vercel-set-bypass-cookie': 'false',
+          },
+        }
+      : {}),
   },
 
   projects: [{ name: 'chromium' }],

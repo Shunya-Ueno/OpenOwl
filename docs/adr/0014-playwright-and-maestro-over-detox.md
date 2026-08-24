@@ -78,7 +78,8 @@ PR ごとに検証する必要が薄い。
 
 - E2E から触る要素には `testID` を付ける。表示文言でセレクタを書かない
   （文言は変わるうえ、エラーメッセージはサーバー由来でクライアントの管理外）。
-- `testID` の一覧は `frontend/e2e/testIds.ts` に集約する。Maestro の YAML からは
+- `testID` の一覧は `frontend/src/shared/testIds.ts` に集約する。アプリのコンポーネントと
+  Playwright の両方がそこから import するため、実装と E2E でずれない。Maestro の YAML からは
   import できないため文字列で書くが、参照先をコメントで示す。
 - `frontend/src/**/*.native.ts` を変更した PR では、iOS の E2E を**手動で**回すことを
   運用ルールとする。CI で強制しない（fork PR で必ず落ちるため）。

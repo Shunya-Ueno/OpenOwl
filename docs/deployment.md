@@ -201,6 +201,7 @@ Redirect URLs（Authentication → URL Configuration）:
 | `SUPABASE_PROJECT_REF_PROD` | — | ❌ | — | ✅ **Variables** | 非公開だが秘密ではない |
 | `SUPABASE_ACCESS_TOKEN` | — | ❌ | — | ✅ **Secrets** | 非公開 |
 | `VERCEL_DEPLOY_HOOK_URL` | — | ❌ | — | ✅ **Secrets** | 非公開（URL を知る者は誰でもデプロイを起動できる） |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | — | ❌ | — | ✅ **Secrets** | 非公開（デプロイ保護を使う場合のみ。プレビュースモークが保護を通過するために使う） |
 | `E2E_USER_EMAIL` | — | ❌ | 任意（ローカル E2E 用） | ✅ **Secrets** | 非公開 |
 | `E2E_USER_PASSWORD` | — | ❌ | 任意（ローカル E2E 用） | ✅ **Secrets** | 非公開 |
 
@@ -272,7 +273,7 @@ push: main
 
 | # | どこで | 作業 | 未設定だとどうなるか |
 | --- | --- | --- | --- |
-| 0 | Vercel | **§1.1 のプロジェクト設定を実際に照合する**（Root Directory=`frontend` / Build Command=`npx expo export --platform web` / Output Directory=`dist`）。デプロイ保護を使う場合は Protection Bypass for Automation も必要 | プレビューが**別のものを 200 で配信**し、`vercel.json` のヘッダも効かない。プレビュースモークが全滅する（[testing-ci.md](./testing-ci.md) §5.5(c) に実例） |
+| 0 | Vercel | **プレビューが `dist` を配信できているか確認する。** Root Directory=`frontend` は設定済みと確認できているので、残るのは Build Command / Output Directory と**デプロイ保護**。保護を使うなら Protection Bypass for Automation を有効にし、シークレットを GitHub Secrets の `VERCEL_AUTOMATION_BYPASS_SECRET` へ登録する | プレビューが**別のものを 200 で配信**し、`vercel.json` のヘッダも効かない。プレビュースモークが全滅する（[testing-ci.md](./testing-ci.md) §5.5(c) に実例と切り分け方） |
 | 1 | Vercel | 本番ブランチ向けの **Deploy Hook** を作成し、URL を GitHub Secrets の `VERCEL_DEPLOY_HOOK_URL` へ登録 | **本番フロントエンドが誰もデプロイできなくなる**（`vercel.json` で自動デプロイを切っているため）。`deploy.yml` は明示的なエラーで落ちる |
 | 2 | GitHub | Environment `production` と `e2e` を作成 | ジョブが起動できない。`production` に承認レビューを付けるかは任意 |
 | 3 | GitHub | Variables に `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（**テスト用**プロジェクトの値）/ `SUPABASE_PROJECT_REF_PROD` を登録 | E2E 用ビルドが接続先を持たない |
