@@ -77,6 +77,13 @@ test.describe('プレビューデプロイのスモーク', () => {
   });
 
   test('プレビューはテスト用 Supabase を向いており、実際にサインインできる', async ({ page }) => {
+    // 資格情報が未登録でも、上のヘッダ・manifest・SPA フォールバックの検証は有効。
+    // このスペックだけを skip して、ジョブ全体を落とさない(docs/testing-ci.md 5.5)。
+    test.skip(
+      !e2eEnv.hasCredentials,
+      'E2E_USER_EMAIL / E2E_USER_PASSWORD が未登録(docs/deployment.md 5.2)',
+    );
+
     // プレビューの環境変数が Production のものになっていたら、ここで気づける
     // (本番プロジェクトに E2E 用アカウントは存在しないため失敗する)。
     let synonymCalls = 0;

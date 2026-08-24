@@ -64,6 +64,17 @@ export const e2eEnv = {
   get allowGeneration(): boolean {
     return process.env.E2E_ALLOW_GENERATION === '1';
   },
+  /**
+   * E2E アカウントの資格情報が揃っているか(未設定でも例外を投げない)。
+   *
+   * プレビューのスモークは大半が資格情報を必要としない
+   * (ヘッダ・manifest・SPA フォールバックの検証が本来の目的)。
+   * 未設定を理由にジョブ全体を落とすと、その本来の目的まで失われるため、
+   * サインインを伴うスペックだけを skip できるようにしておく。
+   */
+  get hasCredentials(): boolean {
+    return Boolean(process.env.E2E_USER_EMAIL && process.env.E2E_USER_PASSWORD);
+  },
 };
 
 /** Edge Function 呼び出しかどうかの判定(docs/api-spec.md 2.1 のパス)。 */
