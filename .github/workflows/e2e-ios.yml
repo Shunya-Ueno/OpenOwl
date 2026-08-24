@@ -1,0 +1,112 @@
+# iOS ネイティブの E2E(Maestro)。設計は docs/testing-ci.md 3 / 5.4、ADR-0014。
+#
+# **PR のゲートにはしない。** macOS ランナーは Linux の 10 倍の単価で、
+# prebuild + Xcode ビルド + シミュレータ起動に十数分かかる。
+# 一方 iOS 固有の分岐は 3 箇所しかなく、PR ごとに壊れる種類のコードではない。
+#
+# 運用ルール: frontend/src/**/*.native.ts を変更した PR では手動で回すこと。
+# CI では強制しない(fork の PR では Secrets が渡らず必ず落ちるため)。
+
+name: E2E (iOS)
+
+on:
+  schedule:
+    # 毎週月曜 02:00 UTC。
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-shared-test-account
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  maestro:
+    name: Maestro on iOS simulator
+    runs-on: macos-15
+    environment: e2e
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Generate native project
+        # ios/ は .gitignore 済み(生成物をコミットしない方針)なので毎回作る。
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Select an iOS simulator
+        id: simulator
+        # 対象を明示しないと expo run:ios は実機向けビルドを試み、
+        # コード署名証明書が無い CI では必ず落ちる。
+        # ランナーのイメージ更新で機種名が変わるため、名前を決め打ちせず実際の一覧から選ぶ。
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c "
+          import json, sys
+          runtimes = json.load(sys.stdin)['devices']
+          candidates = [
+              device
+              for runtime, devices in runtimes.items() if 'iOS' in runtime
+              for device in devices
+              if device.get('isAvailable') and 'iPhone' in device['name']
+          ]
+          print(candidates[-1]['udid'] if candidates else '')
+          ")
+
+          if [ -z "$udid" ]; then
+            echo "::error::利用可能な iPhone シミュレータが見つかりませんでした。"
+            exit 1
+          fi
+
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$udid" || true
+
+      - name: Build and install on simulator
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          npx expo run:ios --no-bundler --configuration Release \
+            --device "${{ steps.simulator.outputs.udid }}"
+
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run Maestro flows
+        env:
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        # 04-apple-sign-in.yaml は手動前提なので含めない
+        # (Apple のシステムシートはシミュレータに Apple ID が必要で、無人実行できない)。
+        run: |
+          maestro test \
+            e2e/maestro/01-sign-in.yaml \
+            e2e/maestro/02-session-persistence.yaml \
+            e2e/maestro/03-generate-synonyms.yaml \
+            -e E2E_USER_EMAIL="$E2E_USER_EMAIL" \
+            -e E2E_USER_PASSWORD="$E2E_USER_PASSWORD"
+
+      - name: Upload Maestro artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-output
+          path: ~/.maestro/tests
+          retention-days: 7
+          if-no-files-found: ignore

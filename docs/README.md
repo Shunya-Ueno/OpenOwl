@@ -1,0 +1,78 @@
+# OpenOwl 設計ドキュメント
+
+このディレクトリは OpenOwl（外国語学習アプリ）の設計ドキュメント一式を格納する。
+**実装よりドキュメントを先行させる**方針を採り、コードは常にここに書かれた設計の写像であることを期待する。
+
+## ドキュメント構成と役割
+
+| ファイル | 役割 | 主な読者 | 作成フェーズ |
+| --- | --- | --- | --- |
+| `README.md`（本ファイル） | ドキュメント全体の索引と読み進め方 | 全員 | 0 |
+| `architecture.md` | 全体アーキテクチャ。Vercel / Supabase / DeepSeek の役割分担、UI 前提（モバイル幅）、プラットフォーム差異方針 | 全員 | 1 |
+| `repository-structure.md` | モノレポのディレクトリ構造、使用パッケージと選定理由 | 開発者 | 1 |
+| `deployment.md` | Vercel デプロイ構成、Supabase デプロイ手順、環境変数マトリクス | 開発者 / 運用 | 1 |
+| `db-schema.md` | テーブル定義、ER 図、インデックス、RLS ポリシー設計 | バックエンド | 2 |
+| `api-spec.md` | Edge Functions の API 仕様（リクエスト / レスポンス / エラーコード） | バックエンド / フロント | 2 |
+| `llm-integration.md` | DeepSeek 連携設計。モデル選定理由、プロンプト設計、クラス設計、リトライ / フォールバック | バックエンド | 2 |
+| `security.md` | シークレット管理、RLS 方針、認可境界、入力バリデーション | 全員 | 2 |
+| `frontend-design.md` | 画面構成と遷移、ディレクトリ構造、状態管理、API アクセス層、Web/PWA 対応、プラットフォーム差異 | フロントエンド | 4 |
+| `testing-ci.md` | テスト戦略（モック禁止下での層の切り分け）、E2E ツール選定、GitHub Actions パイプライン、CI のシークレット管理 | 全員 | 6 |
+| `roadmap.md` | フェーズ計画と将来機能のスコープ境界 | 全員 | 0 |
+| `adr/` | Architecture Decision Record。「なぜその選択をしたか」の記録 | 全員 | 1 以降 |
+
+## この構成にした理由
+
+1. **1 ファイル 1 関心事**
+   「アーキテクチャ」「DB」「API」「デプロイ」を混在させると、フェーズが進むたびに巨大な 1 枚の
+   ドキュメントを差分レビューすることになる。関心事ごとに分割しておくと、
+   フェーズ 3 以降の実装で変更が入った箇所だけをレビューできる。
+
+2. **フェーズと 1:1 で対応させる**
+   本プロジェクトはフェーズ 0 → 6 の順で進む。どのフェーズでどのファイルが増えるかを
+   上表で固定することで、「まだ書かれていない」のか「書き忘れ」なのかを判別できるようにする。
+   未着手フェーズのファイルは**あらかじめ空ファイルを置かない**。存在＝内容がある、とする。
+
+3. **決定の記録（ADR）を本文から分離する**
+   設計本文は「現時点で正しいこと」だけを書き、「なぜ他の案を捨てたか」は `adr/` に隔離する。
+   本文が決定の経緯で膨らむと陳腐化しやすく、更新もされなくなるため。
+   ADR は追記のみ（過去の ADR は書き換えず、`Superseded by ADR-XXXX` で上書きする）。
+
+4. **セキュリティを独立させる**
+   DeepSeek API キーの取り扱いと RLS は MVP の必須要件であり、
+   複数ドキュメントに散らすと監査できない。1 箇所に集約する。
+
+5. **`docs/` に置かないもの**
+   - 実装手順や日々の開発コマンド → `README.md` / `CLAUDE.md`（リポジトリ直下）
+   - AI エージェント向けの規約 → `CLAUDE.md`
+   - タスク管理 → GitHub Issues
+
+## 読む順番（初見の人向け）
+
+1. リポジトリ直下の `README.md`（プロジェクト概要とセットアップ）
+2. `architecture.md`（全体像）
+3. `repository-structure.md`（どこに何があるか）
+4. `db-schema.md` → `api-spec.md` → `llm-integration.md`（バックエンドの詳細）
+5. `security.md`（触る前に必ず）
+6. `frontend-design.md`（フロントエンドを触るなら）
+7. `testing-ci.md`（テストを書く / CI を触るなら）
+
+## ADR 一覧
+
+| # | 決定 | フェーズ |
+| --- | --- | --- |
+| [0001](./adr/0001-monorepo-layout.md) | モノレポとし、直下を `frontend/` と `backend/` に分割する | 1 |
+| [0002](./adr/0002-no-shared-package-for-now.md) | 現時点では `packages/shared` を作らない | 1 |
+| [0003](./adr/0003-expo-router.md) | ルーティングに Expo Router を採用する | 1 |
+| [0004](./adr/0004-state-management.md) | サーバー状態は TanStack Query、クライアント状態は Zustand | 1 |
+| [0005](./adr/0005-mobile-only-viewport.md) | デスクトップ画面幅向けのレイアウト分岐を実装しない | 1 |
+| [0006](./adr/0006-vercel-frontend-only.md) | Vercel はフロント配信専用とし、バックエンドを置かない | 1 |
+| [0007](./adr/0007-deepseek-chat-over-reasoner.md) | DeepSeek のモデルは `deepseek-chat` を使う | 2 |
+| [0008](./adr/0008-global-generation-cache.md) | 生成結果は全ユーザー横断のキャッシュとして共有する | 2 |
+| [0009](./adr/0009-read-path-via-postgrest.md) | 読み取り系 API を作らず、PostgREST を直接使う | 2 |
+| [0010](./adr/0010-feature-based-frontend-structure.md) | フロントエンドは feature-based のディレクトリ構成にする | 4 |
+| [0011](./adr/0011-fetch-over-functions-invoke.md) | Edge Function の呼び出しに `functions.invoke` ではなく `fetch` を使う | 4 |
+| [0012](./adr/0012-generation-as-mutation.md) | 類義語生成は mutation として扱い、URL 直接アクセスでは再生成しない | 4 |
+| [0013](./adr/0013-chunked-securestore-session.md) | ネイティブのセッション永続化に分割 SecureStore アダプタを使う | 4 |
+| [0014](./adr/0014-playwright-and-maestro-over-detox.md) | E2E は Web を Playwright、iOS を Maestro で書き、Detox を採用しない | 6 |
+| [0015](./adr/0015-production-deploy-gated-on-backend.md) | 本番のフロントエンドデプロイをバックエンドデプロイの後段に置く | 6 |
+| [0016](./adr/0016-unit-tests-limited-to-pure-logic.md) | 単体テストは純粋ロジックに限り、コンポーネントテストを書かない | 6 |

@@ -1,0 +1,26 @@
+# メール/パスワードでサインインするサブフロー。
+# 各フローから runFlow で呼ぶ。
+#
+# id: の値は frontend/src/shared/testIds.ts が正典
+# (React Native の testID が iOS の accessibility identifier になる)。
+# YAML から import できないため文字列で持つ。testIds.ts を変えたらここも変える。
+appId: com.openowl.app
+---
+- assertVisible:
+    id: 'sign-in-submit'
+
+- tapOn:
+    id: 'sign-in-email'
+- inputText: ${E2E_USER_EMAIL}
+
+- tapOn:
+    id: 'sign-in-password'
+- inputText: ${E2E_USER_PASSWORD}
+
+- hideKeyboard
+- tapOn:
+    id: 'sign-in-submit'
+
+# 認証ガードを抜けてホームに着いたことを確認する。
+- assertVisible:
+    id: 'home-title'

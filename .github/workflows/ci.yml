@@ -1,0 +1,186 @@
+# PR のマージ条件。設計は docs/testing-ci.md 5。
+#
+# frontend と backend は互いに依存しないので並列(ADR-0001)。
+# e2e-web は frontend のビルド成果物を再利用する。E2E のためにビルドし直さない
+# ことで「テストしたものと配信するものが同じ」を保つ。
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # 毎日 01:00 UTC。実生成を伴う E2E をここでだけ回す(docs/testing-ci.md 6.5)。
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+    inputs:
+      allow_generation:
+        description: 'DeepSeek を実際に呼ぶ E2E も実行する(トークンを消費する)'
+        type: boolean
+        default: false
+
+# 同じ PR への連続 push では古い実行を打ち切る。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: frontend (lint / typecheck / unit / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Warn if the bundle will not be runnable
+        # env.ts の検証はバンドル実行時に効くもので、ビルド時ではない。
+        # そのため未設定でもビルドは成功し、しかし起動できない dist が出来上がる。
+        # fork の PR では Variables が渡らず、これは正常な状態なので失敗にはしない。
+        if: ${{ !vars.EXPO_PUBLIC_SUPABASE_URL || !vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          echo "::warning::EXPO_PUBLIC_SUPABASE_* が未設定のためビルド結果は起動できません。" \
+               "lint/typecheck/単体テストの結果のみが有効です(docs/deployment.md 5.2)。"
+
+      - name: Build web bundle
+        # EXPO_PUBLIC_* は公開前提の値なので Variables に置く(docs/testing-ci.md 6.6)。
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: npm run build:web
+
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: frontend/dist
+          retention-days: 3
+          if-no-files-found: error
+
+  backend:
+    name: backend (fmt / lint / typecheck / unit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/supabase/functions
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Format check
+        run: deno fmt --check
+
+      - name: Lint
+        run: deno lint
+
+      - name: Typecheck
+        run: deno check .
+
+      - name: Unit tests
+        # 純粋ロジックのみが対象なので、パーミッションは一切与えない(ADR-0016)。
+        # ネットワークや FS に触れるテストを書いてしまったらここで落ちる。
+        run: deno test
+
+  e2e-web:
+    name: e2e (web / Playwright)
+    needs: frontend
+    runs-on: ubuntu-latest
+    # fork の PR には Secrets も Variables も渡らないためスキップする。
+    # pull_request_target は使わない(docs/testing-ci.md 6.7)。
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    environment: e2e
+    defaults:
+      run:
+        working-directory: frontend
+    # E2E 用アカウントは 1 つしかない。並行実行すると履歴とレート制限を
+    # 食い合うので、ワークフローをまたいで直列化する(docs/testing-ci.md 6.5)。
+    concurrency:
+      group: e2e-shared-test-account
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Check required configuration
+        # 未設定のまま走らせると、バンドルが env.ts の検証に失敗して起動できず、
+        # 全スペックが「画面が出ない」という同じ理由でまとめて落ちる。
+        # 原因が読み取れないので、ここで 1 行のエラーにして止める。
+        env:
+          SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$SUPABASE_URL" ] && missing="${missing}  - Variables: EXPO_PUBLIC_SUPABASE_URL"$'\n'
+          [ -z "$SUPABASE_ANON_KEY" ] && missing="${missing}  - Variables: EXPO_PUBLIC_SUPABASE_ANON_KEY"$'\n'
+          [ -z "$USER_EMAIL" ] && missing="${missing}  - Secrets: E2E_USER_EMAIL"$'\n'
+          [ -z "$USER_PASSWORD" ] && missing="${missing}  - Secrets: E2E_USER_PASSWORD"$'\n'
+
+          if [ -n "$missing" ]; then
+            echo "::error::E2E に必要な設定が未登録のため実行できません。手順は docs/deployment.md 5.2 を参照。"
+            printf '未登録の項目:\n%s' "$missing"
+            exit 1
+          fi
+
+      - name: Download dist
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: frontend/dist
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright
+        env:
+          E2E_USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          E2E_USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+          # 実生成を伴うスペックは日次のスケジュール実行と、明示的な手動実行でのみ有効。
+          # PR ごとに DeepSeek を叩くと PR 数に比例して課金される。
+          E2E_ALLOW_GENERATION: >-
+            ${{ (github.event_name == 'schedule' || inputs.allow_generation) && '1' || '0' }}
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-web
+          path: frontend/playwright-report
+          retention-days: 7
+          if-no-files-found: ignore

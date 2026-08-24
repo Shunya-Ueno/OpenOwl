@@ -1,0 +1,38 @@
+# Supabase CLI 設定。
+# `supabase link --project-ref xbobgxcsharwyasfzoik` で本ファイルのプロジェクトに紐付く。
+# 対象は「OpenOwl-Vercel」プロジェクト（docs/db-schema.md の設計をそのまま適用した実装用）。
+project_id = "xbobgxcsharwyasfzoik"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:8081"
+additional_redirect_urls = ["openowl://auth/callback"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[edge_runtime]
+enabled = true
+policy = "oneshot"
+
+[functions.synonyms]
+verify_jwt = true

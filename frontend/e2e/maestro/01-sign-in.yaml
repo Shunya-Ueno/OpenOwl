@@ -1,0 +1,17 @@
+# ネイティブでのサインインが通ること。
+#
+# Web 側は Playwright が同じ経路を検証しているが、ネイティブは
+# セッションの保管先が SecureStore(Keychain)で実装が別(ADR-0013)なので、
+# 「サインインしてセッションが書ける」ところまでは実機で確かめる価値がある。
+appId: com.openowl.app
+---
+- launchApp:
+    clearState: true
+
+- runFlow: subflows/sign-in.yaml
+
+# ホームの主要な操作要素が出ていること。
+- assertVisible:
+    id: 'home-word-input'
+- assertVisible:
+    id: 'home-generate'
