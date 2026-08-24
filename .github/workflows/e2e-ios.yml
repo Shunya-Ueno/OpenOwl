@@ -49,11 +49,39 @@ jobs:
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
         run: npx expo prebuild --platform ios --clean
 
+      - name: Select an iOS simulator
+        id: simulator
+        # 対象を明示しないと expo run:ios は実機向けビルドを試み、
+        # コード署名証明書が無い CI では必ず落ちる。
+        # ランナーのイメージ更新で機種名が変わるため、名前を決め打ちせず実際の一覧から選ぶ。
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c "
+          import json, sys
+          runtimes = json.load(sys.stdin)['devices']
+          candidates = [
+              device
+              for runtime, devices in runtimes.items() if 'iOS' in runtime
+              for device in devices
+              if device.get('isAvailable') and 'iPhone' in device['name']
+          ]
+          print(candidates[-1]['udid'] if candidates else '')
+          ")
+
+          if [ -z "$udid" ]; then
+            echo "::error::利用可能な iPhone シミュレータが見つかりませんでした。"
+            exit 1
+          fi
+
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$udid" || true
+
       - name: Build and install on simulator
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
-        run: npx expo run:ios --no-bundler --configuration Release
+        run: |
+          npx expo run:ios --no-bundler --configuration Release \
+            --device "${{ steps.simulator.outputs.udid }}"
 
       - name: Install Maestro
         run: |

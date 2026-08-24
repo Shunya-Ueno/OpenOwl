@@ -55,10 +55,17 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      - name: Warn if the bundle will not be runnable
+        # env.ts の検証はバンドル実行時に効くもので、ビルド時ではない。
+        # そのため未設定でもビルドは成功し、しかし起動できない dist が出来上がる。
+        # fork の PR では Variables が渡らず、これは正常な状態なので失敗にはしない。
+        if: ${{ !vars.EXPO_PUBLIC_SUPABASE_URL || !vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          echo "::warning::EXPO_PUBLIC_SUPABASE_* が未設定のためビルド結果は起動できません。" \
+               "lint/typecheck/単体テストの結果のみが有効です(docs/deployment.md 5.2)。"
+
       - name: Build web bundle
         # EXPO_PUBLIC_* は公開前提の値なので Variables に置く(docs/testing-ci.md 6.6)。
-        # fork の PR ではこれらが空になるが、ビルド自体は通る
-        # (env.ts の検証はバンドル実行時に効くもので、ビルド時ではないため)。
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
@@ -127,6 +134,28 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - run: npm ci
+
+      - name: Check required configuration
+        # 未設定のまま走らせると、バンドルが env.ts の検証に失敗して起動できず、
+        # 全スペックが「画面が出ない」という同じ理由でまとめて落ちる。
+        # 原因が読み取れないので、ここで 1 行のエラーにして止める。
+        env:
+          SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          USER_EMAIL: ${{ secrets.E2E_USER_EMAIL }}
+          USER_PASSWORD: ${{ secrets.E2E_USER_PASSWORD }}
+        run: |
+          missing=""
+          [ -z "$SUPABASE_URL" ] && missing="${missing}  - Variables: EXPO_PUBLIC_SUPABASE_URL"$'\n'
+          [ -z "$SUPABASE_ANON_KEY" ] && missing="${missing}  - Variables: EXPO_PUBLIC_SUPABASE_ANON_KEY"$'\n'
+          [ -z "$USER_EMAIL" ] && missing="${missing}  - Secrets: E2E_USER_EMAIL"$'\n'
+          [ -z "$USER_PASSWORD" ] && missing="${missing}  - Secrets: E2E_USER_PASSWORD"$'\n'
+
+          if [ -n "$missing" ]; then
+            echo "::error::E2E に必要な設定が未登録のため実行できません。手順は docs/deployment.md 5.2 を参照。"
+            printf '未登録の項目:\n%s' "$missing"
+            exit 1
+          fi
 
       - name: Download dist
         uses: actions/download-artifact@v4
