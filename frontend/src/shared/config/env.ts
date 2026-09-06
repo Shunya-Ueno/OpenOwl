@@ -11,26 +11,37 @@ const envSchema = z.object({
   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: z.string().min(1).optional(),
 });
 
-export class InvalidEnvError extends Error {
-  constructor(cause: z.ZodError) {
-    super(
-      `frontend/.env.local が未設定、または不正です。frontend/.env.example を参照してください: ${cause.message}`,
-    );
-    this.name = 'InvalidEnvError';
-  }
+type Env = z.infer<typeof envSchema>;
+
+/**
+ * 検証に失敗したときのフォールバック。
+ *
+ * **ここで throw しないことが重要**(docs/frontend-design.md 13.1)。
+ * この値はモジュール読み込み時に評価され、_layout.tsx が import 連鎖の先で
+ * 参照している。読み込み中に例外を投げると React が描画に入る前にバンドルが
+ * 停止し、**画面が真っ白になって原因が何も表示されない**。
+ *
+ * 代わりにフォールバックで読み込みを通し、`envError` を見た _layout.tsx が
+ * 設定エラー画面を描画する。この URL は実在しないドメインなので、
+ * 誤って設定不備のまま通信してしまうこともない。
+ */
+const FALLBACK_ENV: Env = {
+  EXPO_PUBLIC_SUPABASE_URL: 'https://invalid.example',
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: 'missing-anon-key',
+};
+
+function describe(error: z.ZodError): string {
+  const missing = error.issues.map((issue) => issue.path.join('.')).join(', ');
+  return `必要な環境変数が設定されていません: ${missing}`;
 }
 
-function loadEnv() {
-  const parsed = envSchema.safeParse({
-    EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
-    EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-  });
+const parsed = envSchema.safeParse({
+  EXPO_PUBLIC_SUPABASE_URL: process.env.EXPO_PUBLIC_SUPABASE_URL,
+  EXPO_PUBLIC_SUPABASE_ANON_KEY: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+});
 
-  if (!parsed.success) {
-    throw new InvalidEnvError(parsed.error);
-  }
-  return parsed.data;
-}
+/** 設定不備の説明。正常なら null。UI に出す用途のみで、値そのものは含めない。 */
+export const envError: string | null = parsed.success ? null : describe(parsed.error);
 
-export const env = loadEnv();
+export const env: Env = parsed.success ? parsed.data : FALLBACK_ENV;

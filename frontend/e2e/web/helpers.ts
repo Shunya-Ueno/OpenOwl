@@ -10,6 +10,52 @@ import { e2eEnv, isSynonymsFunctionCall } from '../env';
  * 既定でグローバル)ため、保存済みセッションが他のスペックの途中で無効になりうるから。
  * 直列実行(workers: 1)なので、毎回サインインしても数秒しか増えない。
  */
+/**
+ * 生成完了を待つ上限。
+ *
+ * サーバー側の DeepSeek タイムアウトは既定 20 秒(DEEPSEEK_TIMEOUT_MS)で、
+ * さらにリトライが最大 1 回入りうる。Playwright の既定 expect タイムアウト
+ * (15 秒)ではサーバーが正常に応答しきる前に諦めてしまうため、ここだけ広げる。
+ *
+ * 注意: test.slow() は**テスト全体**のタイムアウトを伸ばすだけで、
+ * expect の既定タイムアウトには効かない。個別に渡す必要がある。
+ */
+export const GENERATION_TIMEOUT_MS = 30_000;
+
+/**
+ * 生成ボタンを押し、結果カードが出るまで待つ。
+ *
+ * 「カードが出ない」理由は 2 つあり、区別できないと原因を追えない:
+ *   1. 生成に時間がかかっている  → 待てば出る
+ *   2. 生成がエラーになった      → いくら待っても出ない
+ *
+ * 素朴に card だけを待つと、2 のときも「element(s) not found」としか出ず、
+ * サーバーが返した理由が失われる(実際にそれで CORS 起因の失敗を見逃しかけた。
+ * docs/testing-ci.md 5.5(d))。エラーカードも同時に待ち、出ていれば
+ * 画面に表示されている日本語メッセージをそのまま添えて落とす。
+ */
+export async function generateAndWaitForResult(page: Page, word: string): Promise<void> {
+  await page.getByTestId(testIds.home.wordInput).fill(word);
+  await page.getByTestId(testIds.home.generate).click();
+
+  const card = page.getByTestId(testIds.result.card).first();
+  const generationError = page.getByTestId(testIds.generationError.root);
+
+  // どちらか先に現れた方を待つ。
+  await expect(card.or(generationError)).toBeVisible({ timeout: GENERATION_TIMEOUT_MS });
+
+  if (await generationError.isVisible()) {
+    const message = (await generationError.innerText()).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `類義語の生成がエラーになりました: ${message}\n` +
+        'テスト用 Supabase プロジェクトの Edge Function 設定を確認してください' +
+        '(DEEPSEEK_API_KEY / ALLOWED_ORIGINS。docs/deployment.md 5.2)。',
+    );
+  }
+
+  await expect(card).toBeVisible({ timeout: GENERATION_TIMEOUT_MS });
+}
+
 export async function signIn(page: Page): Promise<void> {
   await page.goto('/sign-in');
 

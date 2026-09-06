@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { testIds } from '../../src/shared/testIds';
 import { e2eEnv } from '../env';
-import { signIn, deleteFromHistory } from './helpers';
+import { signIn, deleteFromHistory, generateAndWaitForResult, GENERATION_TIMEOUT_MS } from './helpers';
 
 /**
  * 類義語生成の通し(MVP のもう 1 つの機能)。
@@ -20,16 +20,14 @@ test.describe('類義語生成', () => {
     const word = e2eEnv.word;
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
+    // 生成完了(またはエラー)まで待つ。エラーなら理由を添えて落ちる。
+    await generateAndWaitForResult(page, word);
 
-    // 結果画面へ遷移する。
+    // 結果画面へ遷移している。
     await expect(page.getByTestId(testIds.result.title)).toHaveText(word);
 
     // 類義語カードが 1 枚以上出る。件数は LLM の出力次第なので固定しない。
-    const cards = page.getByTestId(testIds.result.card);
-    await expect(cards.first()).toBeVisible();
-    expect(await cards.count()).toBeGreaterThan(0);
+    expect(await page.getByTestId(testIds.result.card).count()).toBeGreaterThan(0);
 
     await deleteFromHistory(page, word);
   });
@@ -38,9 +36,7 @@ test.describe('類義語生成', () => {
     const word = e2eEnv.word;
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await generateAndWaitForResult(page, word);
 
     await page.goto('/history');
     const row = page
@@ -51,7 +47,9 @@ test.describe('類義語生成', () => {
     // 履歴からの遷移は保存済みを読むだけで、再生成しない(ADR-0012)。
     await row.getByTestId(testIds.history.rowWord).click();
     await expect(page.getByTestId(testIds.result.title)).toHaveText(word);
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible({
+      timeout: GENERATION_TIMEOUT_MS,
+    });
 
     await deleteFromHistory(page, word);
   });
@@ -60,9 +58,7 @@ test.describe('類義語生成', () => {
     const word = e2eEnv.word;
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await generateAndWaitForResult(page, word);
 
     await deleteFromHistory(page, word);
 
@@ -78,13 +74,13 @@ test.describe('類義語生成', () => {
     const word = e2eEnv.word;
     await signIn(page);
 
-    await page.getByTestId(testIds.home.wordInput).fill(word);
-    await page.getByTestId(testIds.home.generate).click();
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await generateAndWaitForResult(page, word);
 
     // ADR-0012: リロードは再生成ではなく PostgREST からの読み出しになる。
     await page.reload();
-    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible();
+    await expect(page.getByTestId(testIds.result.card).first()).toBeVisible({
+      timeout: GENERATION_TIMEOUT_MS,
+    });
     await expect(page.getByTestId(testIds.result.notGenerated)).toHaveCount(0);
 
     await deleteFromHistory(page, word);

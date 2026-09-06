@@ -87,7 +87,7 @@ lock を更新したうえでコミットすること。
 | 変数 | 例 | 必須 | 説明 |
 | --- | --- | :---: | --- |
 | `DEEPSEEK_API_KEY` | `sk-xxxxxxxx` | ✓ | DeepSeek API キー。**絶対にリポジトリにコミットしない** |
-| `ALLOWED_ORIGINS` | `http://localhost:8081,https://openowl.vercel.app` | ✓ | CORS 許可オリジン（カンマ区切り、完全一致） |
+| `ALLOWED_ORIGINS` | `http://localhost:8081,http://127.0.0.1:4173,https://openowl.vercel.app` | ✓ | CORS 許可オリジン（カンマ区切り、**完全一致**）。テスト用プロジェクトには E2E の配信元 `http://127.0.0.1:4173` を必ず含める（[testing-ci.md](../docs/testing-ci.md) §5.5(d)） |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | — | 既定値あり |
 | `DEEPSEEK_MODEL` | `deepseek-chat` | — | 既定値あり。`deepseek-reasoner` は使わない（[ADR-0007](../docs/adr/0007-deepseek-chat-over-reasoner.md)） |
 | `DEEPSEEK_TIMEOUT_MS` | `20000` | — | 既定 20000 |

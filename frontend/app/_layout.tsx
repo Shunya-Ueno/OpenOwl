@@ -10,6 +10,8 @@ import { supabase } from '../src/shared/supabase/client';
 import { useAuthStore } from '../src/features/auth/authStore';
 import { registerServiceWorker, type ServiceWorkerUpdate } from '../src/shared/pwa/registerServiceWorker';
 import { injectHeadTags } from '../src/shared/pwa/injectHeadTags';
+import { ConfigErrorScreen } from '../src/shared/ui/ConfigErrorScreen';
+import { envError } from '../src/shared/config/env';
 import { colors, spacing, typography } from '../src/shared/theme/tokens';
 import { testIds } from '../src/shared/testIds';
 
@@ -40,6 +42,20 @@ export default function RootLayout() {
   useEffect(() => {
     injectHeadTags();
   }, []);
+
+  // 環境変数がバンドルに入っていない場合、アプリは何もできない。
+  // 以前はここに到達する前に例外で落ちて真っ白になっていた
+  // (docs/frontend-design.md 13.1)。原因を画面に出す。
+  if (envError) {
+    return (
+      <SafeAreaProvider>
+        <MobileFrame>
+          <ConfigErrorScreen message={envError} />
+        </MobileFrame>
+        <StatusBar style="dark" />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>

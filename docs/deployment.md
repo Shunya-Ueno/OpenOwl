@@ -20,7 +20,7 @@ Vercel ダッシュボードで以下を設定する（**人手が必要な作�
 | Root Directory | `frontend` | これにより `backend/` と `docs/` はビルドコンテキストから外れる |
 | Framework Preset | Other | Expo 用プリセットに頼らず明示指定する |
 | Install Command | `npm ci` | ロックファイル固定 |
-| Build Command | `npx expo export --platform web` | 静的エクスポート |
+| Build Command | `npx expo export --platform web --clear` | 静的エクスポート。`--clear` を付けるのは、Metro のキャッシュが**環境変数の埋め込み値ごと**再利用され、変数を変えても古い値が残ることがあるため（[frontend-design.md](./frontend-design.md) §13.1） |
 | Output Directory | `dist` | `expo export` の既定出力先 |
 | Node.js Version | 22.x | |
 
@@ -119,6 +119,12 @@ Expo は Service Worker と manifest を自動生成しない（`expo-pwa` は�
 Vercel の環境変数は Production / Preview で別々の値を設定できるため、
 同じコードのままプレビューだけテスト用 Supabase を向かせる。
 
+**`EXPO_PUBLIC_SUPABASE_URL` と `EXPO_PUBLIC_SUPABASE_ANON_KEY` は
+Production / Preview の両方に設定する。** 片方だけだと、その環境のビルドには
+値が埋め込まれず、アプリが起動できない。以前これを Production 側で落としており、
+本番 URL が**設定エラー画面**（旧実装では真っ白）になった。
+未設定のときの挙動は [frontend-design.md](./frontend-design.md) §13.1 を参照。
+
 **注意**: Vercel のプレビュー URL はデプロイごとに変わる
 （`openowl-<hash>-<scope>.vercel.app`）。Supabase Auth の Redirect URLs に
 ワイルドカード（例: `https://openowl-*-<scope>.vercel.app/**`）を登録しないと、
@@ -152,7 +158,7 @@ supabase db push
 # 3) シークレット設定（初回 / 変更時のみ）
 supabase secrets set DEEPSEEK_API_KEY=sk-xxxx
 supabase secrets set DEEPSEEK_MODEL=deepseek-chat
-supabase secrets set ALLOWED_ORIGINS=https://<vercel-domain>,http://localhost:8081
+supabase secrets set ALLOWED_ORIGINS=https://<vercel-domain>,http://localhost:8081,http://127.0.0.1:4173
 
 # 4) Edge Function デプロイ
 supabase functions deploy synonyms
@@ -279,6 +285,7 @@ push: main
 | 3 | GitHub | Variables に `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（**テスト用**プロジェクトの値）/ `SUPABASE_PROJECT_REF_PROD` を登録 | E2E 用ビルドが接続先を持たない |
 | 4 | GitHub | Secrets に `SUPABASE_ACCESS_TOKEN` を登録 | `deploy.yml` が Supabase に認証できない |
 | 5 | Supabase（テスト） | **E2E 専用アカウントを 1 つ作成**し、メール確認を済ませる。資格情報を Secrets の `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` へ登録 | E2E がサインインできない |
+| 6 | Supabase（テスト） | Edge Function の Secrets に `DEEPSEEK_API_KEY` と `ALLOWED_ORIGINS` を設定する。**`ALLOWED_ORIGINS` には E2E の配信元 `http://127.0.0.1:4173` を必ず含める** | 認証や履歴のスペックは通るのに**類義語生成のスペックだけが落ちる**。`ALLOWED_ORIGINS` 漏れは CORS でブラウザが弾くため、サーバーのログにも残らない（[testing-ci.md](./testing-ci.md) §5.5(d) に実例） |
 
 **5 について**: CI からユーザーを作らないのは、`service_role` キーを GitHub Actions に
 置くことを [security.md](./security.md) §2.2 が禁じているため。
