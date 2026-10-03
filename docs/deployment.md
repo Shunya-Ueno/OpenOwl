@@ -285,7 +285,7 @@ push: main
 | 3 | GitHub | Variables に `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY`（**テスト用**プロジェクトの値）/ `SUPABASE_PROJECT_REF_PROD` を登録 | E2E 用ビルドが接続先を持たない |
 | 4 | GitHub | Secrets に `SUPABASE_ACCESS_TOKEN` を登録 | `deploy.yml` が Supabase に認証できない |
 | 5 | Supabase（テスト） | **E2E 専用アカウントを 1 つ作成**し、メール確認を済ませる。資格情報を Secrets の `E2E_USER_EMAIL` / `E2E_USER_PASSWORD` へ登録 | E2E がサインインできない |
-| 6 | Supabase（テスト） | Edge Function の Secrets に `DEEPSEEK_API_KEY` と `ALLOWED_ORIGINS` を設定する。**`ALLOWED_ORIGINS` には E2E の配信元 `http://127.0.0.1:4173` を必ず含める** | 認証や履歴のスペックは通るのに**類義語生成のスペックだけが落ちる**。`ALLOWED_ORIGINS` 漏れは CORS でブラウザが弾くため、サーバーのログにも残らない（[testing-ci.md](./testing-ci.md) §5.5(d) に実例） |
+| 6 | Supabase（テスト） | Edge Function の Secrets に `DEEPSEEK_API_KEY` と `ALLOWED_ORIGINS` を設定する。**`ALLOWED_ORIGINS` には E2E の配信元 `http://127.0.0.1:4173` を必ず含める** | 認証や履歴のスペックは通るのに**類義語生成のスペックだけが落ちる**。`ALLOWED_ORIGINS` に 4173 が無いだけならサーバーのログにも残らない。**変数自体が未登録だと関数が起動時に落ち、プリフライトが 500 になる**。どちらも CI の e2e-web が Playwright の前に検出して止まる（[testing-ci.md](./testing-ci.md) §5.5(d)(e) に実例） |
 
 **5 について**: CI からユーザーを作らないのは、`service_role` キーを GitHub Actions に
 置くことを [security.md](./security.md) §2.2 が禁じているため。

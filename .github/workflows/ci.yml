@@ -157,6 +157,37 @@ jobs:
             exit 1
           fi
 
+      - name: Check the Edge Function accepts the E2E origin
+        # Edge Function の Secrets(ALLOWED_ORIGINS 等)が欠けていると、関数は起動時に
+        # 落ちてプリフライトが CORS ヘッダ無しで返る。ブラウザ側では「オフライン」に
+        # しか見えず、生成を伴うスペックだけが理由不明のまま落ちる(docs/testing-ci.md 5.5(d)(e))。
+        # OPTIONS だけを送るので DeepSeek は呼ばれない。
+        # オリジンは playwright.config.ts の既定(127.0.0.1:4173)と一致させること。
+        env:
+          SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          E2E_ORIGIN: http://127.0.0.1:4173
+        run: |
+          headers=$(curl -sS -o /dev/null -D - -X OPTIONS \
+            -H "Origin: $E2E_ORIGIN" \
+            -H "Access-Control-Request-Method: POST" \
+            -H "Access-Control-Request-Headers: authorization, content-type, apikey" \
+            "$SUPABASE_URL/functions/v1/synonyms" | tr -d '\r')
+          status=$(printf '%s\n' "$headers" | awk 'toupper($1) ~ /^HTTP\// { code = $2 } END { print code }')
+          allowed=$(printf '%s\n' "$headers" | grep -i '^access-control-allow-origin:' | cut -d' ' -f2- || true)
+
+          if [ "$status" -ge 500 ] 2>/dev/null; then
+            echo "::error::Edge Function synonyms が起動できていません(プリフライトが HTTP $status)。" \
+                 "テスト用 Supabase プロジェクトの Edge Function Secrets(ALLOWED_ORIGINS / DEEPSEEK_API_KEY)を確認してください。" \
+                 "原因は supabase functions logs synonyms に出ます(docs/deployment.md 5.2 の 6)。"
+            exit 1
+          fi
+          if [ "$allowed" != "$E2E_ORIGIN" ]; then
+            echo "::error::Edge Function が E2E の配信元 $E2E_ORIGIN を許可していません(HTTP ${status:-none})。" \
+                 "テスト用 Supabase プロジェクトの ALLOWED_ORIGINS に $E2E_ORIGIN を追加してください(docs/deployment.md 5.2 の 6)。"
+            exit 1
+          fi
+          echo "preflight OK: HTTP $status, access-control-allow-origin: $allowed"
+
       - name: Download dist
         uses: actions/download-artifact@v4
         with:
