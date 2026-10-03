@@ -300,6 +300,37 @@ Supabase の Auth / PostgREST は自前のオリジンで応答するのでこ�
 ＋リトライ最大 1 回なので、Playwright の既定 15 秒では正常応答を待ちきれない。
 **`test.slow()` はテスト全体のタイムアウトにしか効かず、`expect` の既定値は変わらない**点に注意。
 
+**(e) `ALLOWED_ORIGINS` そのものが未登録で、関数が起動時に落ちていた。**
+
+4a94312(ConfigErrorScreen の導入)以降の日次実行で、再び **21 件中 15 件成功・
+生成を伴う 6 件だけが失敗**した。画面のエラーは「オフラインのようです」、
+各テストは約 1.3 秒で落ちる。
+
+ConfigErrorScreen は無関係だった。サインイン系が通っている時点で
+`EXPO_PUBLIC_SUPABASE_*` はバンドルに入っている(未設定なら全スペックが
+サインイン画面を見つけられずに落ちる)。CI は毎回まっさらなランナーでビルドするので
+Metro キャッシュも効いていない。
+
+テスト用プロジェクトの関数ログが原因をそのまま示していた:
+
+```
+OPTIONS | 500 | .../functions/v1/synonyms
+event loop error: Error: invalid environment configuration: ... "path": ["ALLOWED_ORIGINS"], "message": "Required"
+```
+
+`loadEnv()` は関数のモジュール先頭で走るため、Secrets が欠けていると
+**プリフライト(OPTIONS)の時点で 500 になり、CORS ヘッダも付かない**。
+ブラウザはこれを CORS 違反として `fetch` を失敗させるので、クライアントには
+`network_error`(=「オフライン」)としか見えない。(d) の「オリジンが一覧に無い」と
+症状は同じだが、こちらはサーバーのログに残る。
+
+**コードでは直せない**(Secrets の登録は人手、[deployment.md](./deployment.md) §5.2 の 6)。
+再発時に Playwright を回す前に止まれるよう、`ci.yml` の e2e-web に
+**「E2E の配信元からのプリフライトが通るか」を確かめるステップ**を置いた。
+OPTIONS だけを送るので DeepSeek は呼ばれない。応答に応じて
+「関数が起動できていない(Secrets 不足)」か「オリジンが許可されていない」かを
+1 行のエラーにして落とす。
+
 ### 6.1 前提: CI は本番プロジェクトに一切触らない
 
 [deployment.md](./deployment.md) §2.1 の 2 プロジェクト構成をそのまま使う。
